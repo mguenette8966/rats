@@ -707,7 +707,8 @@
   let graceWalkSpeedMeasured = moveSpeed;
   let walkPhase = 0;
   scene.onBeforeRenderObservable.add(() => {
-    const dt = engine.getDeltaTime() / 1000;
+    // Normalize dt to 60fps frames (~16.67ms)
+    const dtFrames = engine.getDeltaTime() / 16.67;
     // Smooth yaw/beta
     graceYaw += (graceYawTarget - graceYaw) * yawLerp;
     camera.beta += (betaTarget - camera.beta) * betaLerp;
@@ -727,7 +728,7 @@
     const speedMult = isMoving && sprintHeld ? 2.0 : 1.0;
     graceIsRunning = isMoving && sprintHeld;
     if (isMoving) {
-      step.normalize().scaleInPlace(moveSpeed * speedMult * dt);
+      step.normalize().scaleInPlace(moveSpeed * speedMult * dtFrames);
       graceVisual.rotation.y = Math.atan2(step.x, step.z);
     }
 
@@ -737,8 +738,8 @@
     const after = graceCollider.position;
     if (lastGracePos === null) lastGracePos = before.clone();
     const frameDist = BABYLON.Vector3.Distance(after, before);
-    if (dt > 0) {
-      const frameSpeed = frameDist / dt;
+    if (dtFrames > 0) {
+      const frameSpeed = frameDist / (dtFrames * (1/60)); // meters per second
       if (isMoving && !graceIsRunning) {
         // Smooth measurement to reduce jitter
         graceWalkSpeedMeasured = graceWalkSpeedMeasured * 0.85 + frameSpeed * 0.15;
@@ -748,7 +749,7 @@
 
     // Limb walk animation
     const targetPhaseSpeed = (isMoving ? 0.12 : 0);
-    walkPhase += targetPhaseSpeed * dt * 60;
+    walkPhase += targetPhaseSpeed * dtFrames * 60;
     const swing = isMoving ? Math.sin(walkPhase) * 0.35 : 0;
     const swingOpp = -swing;
     leftLeg.rotation.x = swing;
@@ -931,7 +932,7 @@
   }
   scene.onBeforeRenderObservable.add(() => {
     if (!gameStarted) return;
-    const dt = engine.getDeltaTime() / 1000;
+    const dtFrames = engine.getDeltaTime() / 16.67;
     if (!lincoln.state.down) {
       const toGrace = graceCollider.position.subtract(lincoln.collider.position);
       toGrace.y = 0;
@@ -939,9 +940,9 @@
       let isMovingL = false;
       if (dist > lincolnStopDist) {
         const dir = chooseLincolnDir(toGrace);
-        const base = graceWalkSpeedMeasured > 0.0001 ? graceWalkSpeedMeasured : lincolnBaseSpeed;
+        const base = graceWalkSpeedMeasured > 0.0001 ? graceWalkSpeedMeasured : (lincolnBaseSpeed / (1/60));
         const curSpeed = base * (graceIsRunning ? 1.5 : 1.0);
-        const step = dir.scale(curSpeed * dt);
+        const step = dir.scale(curSpeed * (dtFrames * (1/60)));
         const moveVec = new BABYLON.Vector3(step.x, 0, step.z);
         lincoln.collider.moveWithCollisions(moveVec);
         // keep grounded and avoid jitter
@@ -951,7 +952,7 @@
       }
       // Walk anim
       const targetPhaseSpeed = (isMovingL ? 0.12 : 0);
-      lincoln.state.walkPhase += targetPhaseSpeed * dt * 60;
+      lincoln.state.walkPhase += targetPhaseSpeed * dtFrames * 60;
       const swing = isMovingL ? Math.sin(lincoln.state.walkPhase) * 0.28 : 0;
       const swingOpp = -swing;
       lincoln.limbs.leftLeg.rotation.x = swing;
