@@ -15,6 +15,8 @@
   scene.collisionsEnabled = true;
   scene.gravity = new BABYLON.Vector3(0, -0.5, 0);
 
+  let gameStarted = false;
+
   const camera = new BABYLON.ArcRotateCamera('camera', Math.PI, BABYLON.Angle.FromDegrees(45).radians(), 12, new BABYLON.Vector3(0, 1.2, 0), scene);
   camera.lowerRadiusLimit = 8;
   camera.upperRadiusLimit = 20;
@@ -58,6 +60,28 @@
     setTimeout(() => ui.removeControl(rect), durationMs);
   }
 
+  function createTitleScreen() {
+    const overlay = new BABYLON.GUI.Rectangle('titleOverlay');
+    overlay.width = 1; overlay.height = 1; overlay.background = '#000000cc'; overlay.thickness = 0;
+    ui.addControl(overlay);
+
+    const stack = new BABYLON.GUI.StackPanel(); stack.isVertical = true; stack.width = '60%'; overlay.addControl(stack);
+
+    const title = new BABYLON.GUI.TextBlock();
+    title.text = 'Hide and Squeak'; title.color = 'white'; title.fontSize = 48; title.paddingTop = '100px';
+    stack.addControl(title);
+
+    const art = new BABYLON.GUI.TextBlock();
+    art.text = '🐭 Rio    🐭 Chunk    🐭 Snickerdoodle\n🌸 🌼 🌺   Find all 3 and bring them home!';
+    art.color = 'white'; art.fontSize = 24; art.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER; art.paddingTop = '30px';
+    stack.addControl(art);
+
+    const startBtn = BABYLON.GUI.Button.CreateSimpleButton('startGameBtn', 'Start Game');
+    startBtn.width = '200px'; startBtn.height = '60px'; startBtn.color = 'white'; startBtn.background = '#2b7a2b'; startBtn.fontSize = 24; startBtn.cornerRadius = 8; startBtn.paddingTop = '40px';
+    startBtn.onPointerUpObservable.add(() => { gameStarted = true; ui.removeControl(overlay); canvas.focus(); });
+    stack.addControl(startBtn);
+  }
+
   function createLabelForMesh(mesh, label, color = 'white') {
     const rect = new BABYLON.GUI.Rectangle();
     rect.background = '#00000088';
@@ -80,6 +104,9 @@
 
     return rect;
   }
+
+  // Build title screen (game starts paused)
+  createTitleScreen();
 
   // Ground & Roads
   const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 200, height: 200, subdivisions: 2 }, scene);
@@ -523,14 +550,16 @@
       case 'd': case 'ArrowRight': input.r = down; break;
     }
   }
-  window.addEventListener('keydown', (e) => setKey(e.key, true));
-  window.addEventListener('keyup', (e) => setKey(e.key, false));
+  window.addEventListener('keydown', (e) => { if (!gameStarted) return; setKey(e.key, true); });
+  window.addEventListener('keyup', (e) => { if (!gameStarted) return; setKey(e.key, false); });
   window.addEventListener('keydown', (e) => {
+    if (!gameStarted) return;
     const isSpace = e.code === 'Space' || e.key === ' ';
     const isShift = e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.key === 'Shift';
     if (isSpace || isShift) { e.preventDefault(); sprintHeld = true; }
   });
   window.addEventListener('keyup', (e) => {
+    if (!gameStarted) return;
     const isSpace = e.code === 'Space' || e.key === ' ';
     const isShift = e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.key === 'Shift';
     if (isSpace || isShift) { e.preventDefault(); sprintHeld = false; }
@@ -547,6 +576,8 @@
     graceYaw += (graceYawTarget - graceYaw) * yawLerp;
     camera.beta += (betaTarget - camera.beta) * betaLerp;
     camera.alpha = -graceYaw - Math.PI / 2;
+
+    if (!gameStarted) return;
 
     const forward = new BABYLON.Vector3(Math.sin(graceYaw), 0, Math.cos(graceYaw));
     const right = new BABYLON.Vector3(Math.cos(graceYaw), 0, -Math.sin(graceYaw));
@@ -758,15 +789,24 @@
 
   window.addEventListener('keydown', (e) => {
     if (!['e','E','Space',' '].includes(e.key) && e.code !== 'Space') return;
+    if (!gameStarted) return;
     // If moving and Space is held, treat as sprint only
     if ((e.code === 'Space' || e.key === ' ') && (input.f || input.b || input.l || input.r)) return;
 
     const allFoundNow = ratEntities.every(r => r.root.metadata.found);
 
+    // Determine door position (metadata or fallback)
+    let doorPos = null;
+    if (home && home.metadata && home.metadata.door) doorPos = home.metadata.door.position;
+    else if (home) {
+      const ext = home.getBoundingInfo().boundingBox.extendSize;
+      doorPos = new BABYLON.Vector3(home.position.x, 0.95, home.position.z + ext.z + 0.03);
+    }
+
     // Door interaction first: if near door but not all rats found, inform player
-    if (home && home.metadata && home.metadata.door) {
-      const dDoor = BABYLON.Vector3.Distance(home.metadata.door.position, graceCollider.position);
-      if (dDoor < 2.2 && !allFoundNow) {
+    if (doorPos) {
+      const dDoor = BABYLON.Vector3.Distance(doorPos, graceCollider.position);
+      if (dDoor < 2.5 && !allFoundNow) {
         showToast('You need to find all three rats first!', 2500);
         return;
       }
@@ -786,10 +826,11 @@
 
     // If all rats found, require interacting with the home door to win
     if (allFoundNow) {
-      if (home && home.metadata && home.metadata.door) {
-        const dDoor = BABYLON.Vector3.Distance(home.metadata.door.position, graceCollider.position);
-        if (dDoor < 2.2) {
+      if (doorPos) {
+        const dDoor = BABYLON.Vector3.Distance(doorPos, graceCollider.position);
+        if (dDoor < 2.5) {
           showToast('You made it home with all three rats! You win! 🎉', 4000);
+          setTimeout(() => location.reload(), 5000);
         } else if (!interacted) {
           showToast("All rats found! Go to Grace's House door to finish!", 2500);
         }
