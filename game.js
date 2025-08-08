@@ -304,6 +304,61 @@
   const homeMarker = createFloatingBillboard('HOME', home, 'Home');
   homeMarker.isVisible = false;
 
+  // Make Grace's house colorful and covered with big flowers so it's obvious
+  (function decorateHome(building) {
+    if (!building) return;
+    const ext = building.getBoundingInfo().boundingBox.extendSize;
+    const pos = building.position;
+
+    // Bright, playful color for the house
+    const brightMat = new BABYLON.StandardMaterial('homeBrightMat', scene);
+    brightMat.diffuseColor = new BABYLON.Color3(0.85, 0.35, 0.85);
+    brightMat.emissiveColor = new BABYLON.Color3(0.2, 0.05, 0.2);
+    building.material = brightMat;
+
+    // Palette for flowers
+    const flowerColors = [
+      new BABYLON.Color3(1.0, 0.3, 0.5),
+      new BABYLON.Color3(1.0, 0.8, 0.2),
+      new BABYLON.Color3(0.3, 0.9, 0.6),
+      new BABYLON.Color3(0.4, 0.6, 1.0),
+      new BABYLON.Color3(1.0, 0.5, 0.2),
+    ];
+
+    function makeFlower(x, y, z) {
+      const f = BABYLON.MeshBuilder.CreateSphere('homeFlower_' + Math.random(), { diameter: 0.28 }, scene);
+      f.position = new BABYLON.Vector3(x, y, z);
+      const fm = new BABYLON.StandardMaterial('homeFlowerMat_' + Math.random(), scene);
+      fm.diffuseColor = flowerColors[Math.floor(Math.random() * flowerColors.length)];
+      fm.emissiveColor = fm.diffuseColor.scale(0.25);
+      f.material = fm;
+      return f;
+    }
+
+    // Front wall flowers (big grid)
+    for (let i = -3; i <= 3; i++) {
+      for (let j = 0; j <= 3; j++) {
+        makeFlower(pos.x + i * 0.6, 0.9 + j * 0.35, pos.z + ext.z + 0.06);
+      }
+    }
+
+    // Side walls
+    for (let i = -3; i <= 3; i++) {
+      makeFlower(pos.x - ext.x - 0.06, 1.0 + Math.random() * 1.0, pos.z + i * 0.5);
+      makeFlower(pos.x + ext.x + 0.06, 1.0 + Math.random() * 1.0, pos.z + i * 0.5);
+    }
+
+    // A few on the roof edge for extra visibility
+    for (let i = -2; i <= 2; i++) {
+      makeFlower(pos.x + i * 0.7, pos.y + ext.y + 0.25, pos.z + ext.z - 0.05);
+    }
+
+    // Ground flowers in front
+    for (let i = -4; i <= 4; i++) {
+      makeFlower(pos.x + i * 0.5, 0.08, pos.z + ext.z + 0.7);
+    }
+  })(home);
+
   // Player (Grace) – use a hidden collider and a visual rig to ensure torso height
   const graceCollider = BABYLON.MeshBuilder.CreateCapsule('GraceCollider', { height: 2.0, radius: 0.45 }, scene);
   graceCollider.position = new BABYLON.Vector3(0, 1.1, 0);
