@@ -112,7 +112,11 @@
       txt.textVerticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_CENTER;
       instr.addControl(txt);
 
-      setTimeout(() => { ui.removeControl(instr); onDone && onDone(); }, 5000);
+      let timeoutId = setTimeout(() => { ui.removeControl(instr); onDone && onDone(); }, 5000);
+      instr.onPointerUpObservable.add(() => {
+        if (timeoutId) clearTimeout(timeoutId);
+        ui.removeControl(instr); onDone && onDone();
+      });
     }
 
     const startBtn = BABYLON.GUI.Button.CreateSimpleButton('startGameBtn', 'Start Game');
@@ -698,9 +702,12 @@
   let graceIsRunning = false;
   let sprintHeld = false;
   const step = new BABYLON.Vector3();
+  // Track Grace walk speed to mirror for Lincoln
+  let lastGracePos = null;
+  let graceWalkSpeedMeasured = moveSpeed;
   let walkPhase = 0;
   scene.onBeforeRenderObservable.add(() => {
-    const dt = engine.getDeltaTime() / 16.67;
+    const dt = engine.getDeltaTime() / 1000;
     // Smooth yaw/beta
     graceYaw += (graceYawTarget - graceYaw) * yawLerp;
     camera.beta += (betaTarget - camera.beta) * betaLerp;
@@ -710,11 +717,10 @@
 
     const forward = new BABYLON.Vector3(Math.sin(graceYaw), 0, Math.cos(graceYaw));
     const right = new BABYLON.Vector3(Math.cos(graceYaw), 0, -Math.sin(graceYaw));
-
-    step.copyFromFloats(0, 0, 0);
+    step.set(0, 0, 0);
     if (input.f) step.addInPlace(forward);
-    if (input.b) step.addInPlace(forward.scale(-1));
-    if (input.l) step.addInPlace(right.scale(-1));
+    if (input.b) step.subtractInPlace(forward);
+    if (input.l) step.subtractInPlace(right);
     if (input.r) step.addInPlace(right);
 
     const isMoving = step.lengthSquared() > 0.0001;
@@ -725,8 +731,20 @@
       graceVisual.rotation.y = Math.atan2(step.x, step.z);
     }
 
+    const before = graceCollider.position.clone();
     const moveVector = new BABYLON.Vector3(step.x, scene.gravity.y * 0.5, step.z);
     graceCollider.moveWithCollisions(moveVector);
+    const after = graceCollider.position;
+    if (lastGracePos === null) lastGracePos = before.clone();
+    const frameDist = BABYLON.Vector3.Distance(after, before);
+    if (dt > 0) {
+      const frameSpeed = frameDist / dt;
+      if (isMoving && !graceIsRunning) {
+        // Smooth measurement to reduce jitter
+        graceWalkSpeedMeasured = graceWalkSpeedMeasured * 0.85 + frameSpeed * 0.15;
+      }
+    }
+    lastGracePos.copyFrom(after);
 
     // Limb walk animation
     const targetPhaseSpeed = (isMoving ? 0.12 : 0);
@@ -921,7 +939,8 @@
       let isMovingL = false;
       if (dist > lincolnStopDist) {
         const dir = chooseLincolnDir(toGrace);
-        const curSpeed = lincolnBaseSpeed * (graceIsRunning ? 1.5 : 1.0);
+        const base = graceWalkSpeedMeasured > 0.0001 ? graceWalkSpeedMeasured : lincolnBaseSpeed;
+        const curSpeed = base * (graceIsRunning ? 1.5 : 1.0);
         const step = dir.scale(curSpeed * dt);
         const moveVec = new BABYLON.Vector3(step.x, 0, step.z);
         lincoln.collider.moveWithCollisions(moveVec);
