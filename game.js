@@ -62,22 +62,23 @@
 
   function createTitleScreen() {
     const overlay = new BABYLON.GUI.Rectangle('titleOverlay');
-    overlay.width = 1; overlay.height = 1; overlay.background = '#000000cc'; overlay.thickness = 0;
+    overlay.width = 1; overlay.height = 1; overlay.background = '#000000ee'; overlay.thickness = 0;
+    overlay.zIndex = 5000;
     ui.addControl(overlay);
 
-    const stack = new BABYLON.GUI.StackPanel(); stack.isVertical = true; stack.width = '60%'; overlay.addControl(stack);
+    const stack = new BABYLON.GUI.StackPanel(); stack.isVertical = true; stack.width = '80%'; overlay.addControl(stack);
 
     const title = new BABYLON.GUI.TextBlock();
-    title.text = 'Hide and Squeak'; title.color = 'white'; title.fontSize = 48; title.paddingTop = '100px';
+    title.text = 'Hide and Squeak'; title.color = 'white'; title.fontSize = 64; title.paddingTop = '100px';
     stack.addControl(title);
 
     const art = new BABYLON.GUI.TextBlock();
     art.text = '🐭 Rio    🐭 Chunk    🐭 Snickerdoodle\n🌸 🌼 🌺   Find all 3 and bring them home!';
-    art.color = 'white'; art.fontSize = 24; art.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER; art.paddingTop = '30px';
+    art.color = 'white'; art.fontSize = 28; art.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER; art.paddingTop = '30px';
     stack.addControl(art);
 
     const startBtn = BABYLON.GUI.Button.CreateSimpleButton('startGameBtn', 'Start Game');
-    startBtn.width = '200px'; startBtn.height = '60px'; startBtn.color = 'white'; startBtn.background = '#2b7a2b'; startBtn.fontSize = 24; startBtn.cornerRadius = 8; startBtn.paddingTop = '40px';
+    startBtn.width = '240px'; startBtn.height = '70px'; startBtn.color = 'white'; startBtn.background = '#2b7a2b'; startBtn.fontSize = 28; startBtn.cornerRadius = 10; startBtn.paddingTop = '40px';
     startBtn.onPointerUpObservable.add(() => { gameStarted = true; ui.removeControl(overlay); canvas.focus(); });
     stack.addControl(startBtn);
   }
@@ -774,6 +775,7 @@
   scene.onBeforeRenderObservable.add(updateChecklist);
 
   let allFound = false;
+  let allFoundToastShown = false;
 
   function attachRatToGrace(rat) {
     // Place on anchors, ensure above surface
@@ -794,6 +796,7 @@
     if ((e.code === 'Space' || e.key === ' ') && (input.f || input.b || input.l || input.r)) return;
 
     const allFoundNow = ratEntities.every(r => r.root.metadata.found);
+    const wasAllFoundBefore = allFoundNow;
 
     // Determine door position (metadata or fallback)
     let doorPos = null;
@@ -824,14 +827,22 @@
       }
     }
 
+    // If we just completed collecting all rats, show a delayed guidance toast after the pickup toast fades
+    const nowAllFound = ratEntities.every(r => r.root.metadata.found);
+    if (!wasAllFoundBefore && nowAllFound && !allFoundToastShown) {
+      allFoundToastShown = true;
+      if (homeMarker) homeMarker.isVisible = true;
+      setTimeout(() => showToast("All rats found! Return to Grace's House door to finish!", 3000), 2600);
+    }
+
     // If all rats found, require interacting with the home door to win
-    if (allFoundNow) {
+    if (nowAllFound) {
       if (doorPos) {
         const dDoor = BABYLON.Vector3.Distance(doorPos, graceCollider.position);
         if (dDoor < 2.5) {
           showToast('You made it home with all three rats! You win! 🎉', 4000);
           setTimeout(() => location.reload(), 5000);
-        } else if (!interacted) {
+        } else if (!interacted && wasAllFoundBefore) {
           showToast("All rats found! Go to Grace's House door to finish!", 2500);
         }
       }
