@@ -329,6 +329,11 @@
   hairMat.diffuseColor = new BABYLON.Color3(0.36, 0.22, 0.12);
   hair.material = hairMat;
 
+  // Rat attachment anchors (top of head and shoulders)
+  const headAnchor = new BABYLON.TransformNode('HeadAnchor', scene); headAnchor.parent = graceVisual; headAnchor.position = new BABYLON.Vector3(0, 2.65, 0);
+  const leftShoulderAnchor = new BABYLON.TransformNode('LeftShoulderAnchor', scene); leftShoulderAnchor.parent = graceVisual; leftShoulderAnchor.position = new BABYLON.Vector3(-0.5, 1.75, 0.15);
+  const rightShoulderAnchor = new BABYLON.TransformNode('RightShoulderAnchor', scene); rightShoulderAnchor.parent = graceVisual; rightShoulderAnchor.position = new BABYLON.Vector3(0.5, 1.75, 0.15);
+
   // Limbs
   const limbMat = new BABYLON.StandardMaterial('limbMat', scene);
   limbMat.diffuseColor = new BABYLON.Color3(0.85, 0.7, 0.6);
@@ -341,7 +346,7 @@
   }
   const leftLeg = createLimb('LeftLeg', 1.0, 0.18); leftLeg.position = new BABYLON.Vector3(-0.25, 0.5, 0);
   const rightLeg = createLimb('RightLeg', 1.0, 0.18); rightLeg.position = new BABYLON.Vector3(0.25, 0.5, 0);
-  const shoulderY = 1.2 + (1.4 / 2) - 0.05; // based on torso position/height
+  const shoulderY = 1.2 + (1.4 / 2) - 0.15; // slightly lower arms
   const leftArm = createLimb('LeftArm', 0.9, 0.14); leftArm.position = new BABYLON.Vector3(-0.5, shoulderY, 0.08);
   const rightArm = createLimb('RightArm', 0.9, 0.14); rightArm.position = new BABYLON.Vector3(0.5, shoulderY, 0.08);
 
@@ -360,8 +365,8 @@
   const rightSleeve = leftSleeve.clone('RightSleeve'); rightSleeve.parent = rightArm; rightSleeve.position = new BABYLON.Vector3(0, -0.2, 0);
 
   // Shorts (larger to stand out)
-  const shorts = BABYLON.MeshBuilder.CreateBox('Shorts', { width: 1.05, height: 0.5, depth: 0.85 }, scene);
-  shorts.parent = graceVisual; shorts.position = new BABYLON.Vector3(0, 0.95, 0); shorts.material = shortsMat;
+  const shorts = BABYLON.MeshBuilder.CreateBox('Shorts', { width: 1.05, height: 0.68, depth: 0.85 }, scene);
+  shorts.parent = graceVisual; shorts.position = new BABYLON.Vector3(0, 0.85, 0); shorts.material = shortsMat;
 
   function createShoe(parent, name) {
     const shoe = BABYLON.MeshBuilder.CreateBox(name + '_Body', { width: 0.28, height: 0.12, depth: 0.5 }, scene);
@@ -584,15 +589,19 @@
   let allFound = false;
 
   function attachRatToGrace(rat) {
-    rat.root.setParent(graceVisual);
-    rat.root.position = rat.attach.clone();
+    // Place on anchors, ensure above surface
+    let anchor = headAnchor;
+    if (rat.name === 'Chunk') anchor = leftShoulderAnchor;
+    else if (rat.name === 'Snickerdoodle') anchor = rightShoulderAnchor;
+    rat.root.setParent(anchor);
+    rat.root.position = new BABYLON.Vector3(0, 0.05, 0); // slight upward offset
     rat.root.rotation = new BABYLON.Vector3(0, 0, 0);
     rat.root.metadata.found = true;
     rat.label.isVisible = false;
   }
 
   window.addEventListener('keydown', (e) => {
-    if (e.key !== 'e' && e.key !== 'E') return;
+    if (!['e','E','Space',' '].includes(e.key) && e.code !== 'Space') return;
     for (const r of ratEntities) {
       if (r.root.metadata.found) continue;
       const d = BABYLON.Vector3.Distance(r.root.position, graceCollider.position);
