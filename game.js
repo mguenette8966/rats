@@ -313,7 +313,7 @@
   graceVisual.parent = graceCollider;
 
   // Torso
-  const torso = BABYLON.MeshBuilder.CreateCapsule('GraceTorso', { height: 1.4, radius: 0.4 }, scene);
+  const torso = BABYLON.MeshBuilder.CreateCapsule('GraceTorso', { height: 1.4, radius: 0.35 }, scene);
   torso.parent = graceVisual;
   torso.position = new BABYLON.Vector3(0, 1.2, 0);
   const graceMat = new BABYLON.StandardMaterial('graceMat', scene);
@@ -331,8 +331,8 @@
 
   // Rat attachment anchors (top of head and shoulders)
   const headAnchor = new BABYLON.TransformNode('HeadAnchor', scene); headAnchor.parent = graceVisual; headAnchor.position = new BABYLON.Vector3(0, 2.65, 0);
-  const leftShoulderAnchor = new BABYLON.TransformNode('LeftShoulderAnchor', scene); leftShoulderAnchor.parent = graceVisual; leftShoulderAnchor.position = new BABYLON.Vector3(-0.5, 1.75, 0.15);
-  const rightShoulderAnchor = new BABYLON.TransformNode('RightShoulderAnchor', scene); rightShoulderAnchor.parent = graceVisual; rightShoulderAnchor.position = new BABYLON.Vector3(0.5, 1.75, 0.15);
+  const leftShoulderAnchor = new BABYLON.TransformNode('LeftShoulderAnchor', scene); leftShoulderAnchor.parent = graceVisual; leftShoulderAnchor.position = new BABYLON.Vector3(-0.5, 1.85, 0.18);
+  const rightShoulderAnchor = new BABYLON.TransformNode('RightShoulderAnchor', scene); rightShoulderAnchor.parent = graceVisual; rightShoulderAnchor.position = new BABYLON.Vector3(0.5, 1.85, 0.18);
 
   // Limbs
   const limbMat = new BABYLON.StandardMaterial('limbMat', scene);
@@ -357,7 +357,7 @@
   const soleMat = new BABYLON.StandardMaterial('soleMat', scene); soleMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
 
   // Shirt body (scaled up for clear visibility)
-  const shirt = BABYLON.MeshBuilder.CreateCylinder('Shirt', { height: 0.9, diameter: 1.1 }, scene);
+  const shirt = BABYLON.MeshBuilder.CreateCylinder('Shirt', { height: 0.9, diameter: 0.95 }, scene);
   shirt.parent = graceVisual; shirt.position = new BABYLON.Vector3(0, 1.55, 0); shirt.material = shirtMat;
   // Short sleeves attached to arms
   const leftSleeve = BABYLON.MeshBuilder.CreateCylinder('LeftSleeve', { height: 0.25, diameter: 0.32 }, scene);
@@ -592,6 +592,7 @@
   hud.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
   hud.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
   hud.paddingLeft = '10px'; hud.paddingTop = '10px';
+  hud.zIndex = 1000; // ensure on top
   ui.addControl(hud);
 
   const title = new BABYLON.GUI.TextBlock();
