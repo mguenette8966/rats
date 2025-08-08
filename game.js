@@ -312,6 +312,7 @@
     const d = home.metadata.door.position;
     const sign = BABYLON.MeshBuilder.CreatePlane('homeDoorSign', { width: 3, height: 0.8, sideOrientation: BABYLON.Mesh.DOUBLESIDE }, scene);
     sign.position = new BABYLON.Vector3(d.x, d.y + 0.95, d.z + 0.02);
+    sign.rotation.y = Math.PI; // face outward toward -Z
     const sm = new BABYLON.StandardMaterial('homeDoorSignMat', scene);
     const sTex = new BABYLON.DynamicTexture('homeDoorSignTex', { width: 512, height: 128 }, scene, false);
     sTex.drawText("Grace's House", 20, 90, 'bold 64px sans-serif', 'white', 'rgba(0,0,0,0.6)', true);
@@ -349,10 +350,19 @@
       return f;
     }
 
-    // Front wall flowers (big grid)
+    // Exclusion box for sign area on front wall
+    const signMinX = pos.x - 1.6, signMaxX = pos.x + 1.6;
+    const signMinY = 1.4, signMaxY = 2.2;
+    const frontZ = pos.z + ext.z + 0.06;
+
+    // Front wall flowers (big grid) - avoid sign region
     for (let i = -3; i <= 3; i++) {
       for (let j = 0; j <= 3; j++) {
-        makeFlower(pos.x + i * 0.6, 0.9 + j * 0.35, pos.z + ext.z + 0.06);
+        const fx = pos.x + i * 0.6;
+        const fy = 0.9 + j * 0.35;
+        const fz = frontZ;
+        const inSign = (fx >= signMinX && fx <= signMaxX && fy >= signMinY && fy <= signMaxY);
+        if (!inSign) makeFlower(fx, fy, fz);
       }
     }
 
