@@ -112,7 +112,91 @@
     box.material = mat;
 
     buildings.push(box);
+    addBuildingDetails(box);
     return box;
+  }
+
+  // Building details: windows, doors, and simple roof
+  function addBuildingDetails(building) {
+    const ext = building.getBoundingInfo().boundingBox.extendSize;
+    const basePos = building.position;
+    const h = ext.y * 2;
+
+    // Door (front, +Z side)
+    const door = BABYLON.MeshBuilder.CreatePlane('door_' + building.name, { width: Math.min(1.2, ext.x * 1.6), height: 1.8 }, scene);
+    door.position = new BABYLON.Vector3(basePos.x, 0.9, basePos.z + ext.z + 0.02);
+    const doorMat = new BABYLON.StandardMaterial('doorMat_' + building.name, scene);
+    doorMat.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1);
+    door.material = doorMat;
+
+    // Windows (left/right and back)
+    function makeWindow(px, py, pz, ry) {
+      const win = BABYLON.MeshBuilder.CreatePlane('win_' + Math.random(), { width: 0.9, height: 0.9 }, scene);
+      win.position = new BABYLON.Vector3(px, py, pz);
+      win.rotation.y = ry;
+      const wm = new BABYLON.StandardMaterial('winMat_' + Math.random(), scene);
+      wm.diffuseColor = new BABYLON.Color3(0.6, 0.8, 1.0);
+      wm.emissiveColor = new BABYLON.Color3(0.2, 0.3, 0.5);
+      win.material = wm;
+      return win;
+    }
+    const winY = Math.min(1.4, h * 0.6);
+    // Left/right
+    makeWindow(basePos.x - ext.x - 0.02, winY, basePos.z - ext.z * 0.3, Math.PI / 2);
+    makeWindow(basePos.x - ext.x - 0.02, winY, basePos.z + ext.z * 0.3, Math.PI / 2);
+    makeWindow(basePos.x + ext.x + 0.02, winY, basePos.z - ext.z * 0.3, -Math.PI / 2);
+    makeWindow(basePos.x + ext.x + 0.02, winY, basePos.z + ext.z * 0.3, -Math.PI / 2);
+    // Back
+    makeWindow(basePos.x - ext.x * 0.3, winY, basePos.z - ext.z - 0.02, Math.PI);
+    makeWindow(basePos.x + ext.x * 0.3, winY, basePos.z - ext.z - 0.02, Math.PI);
+
+    // Roof (simple slab)
+    const roof = BABYLON.MeshBuilder.CreateBox('roof_' + building.name, { width: ext.x * 2 + 0.6, depth: ext.z * 2 + 0.6, height: 0.4 }, scene);
+    roof.position = new BABYLON.Vector3(basePos.x, basePos.y + ext.y + 0.2, basePos.z);
+    const roofMat = new BABYLON.StandardMaterial('roofMat_' + building.name, scene);
+    roofMat.diffuseColor = new BABYLON.Color3(0.5, 0.1, 0.1);
+    roof.material = roofMat;
+
+    // Landscaping: trees and bushes
+    addTreesAndBushesAround(building);
+  }
+
+  function addTreesAndBushesAround(building) {
+    const ext = building.getBoundingInfo().boundingBox.extendSize;
+    const basePos = building.position;
+
+    function createTree(pos) {
+      const trunk = BABYLON.MeshBuilder.CreateCylinder('trunk_' + Math.random(), { height: 1.6, diameter: 0.18 }, scene);
+      trunk.position = pos.add(new BABYLON.Vector3(0, 0.8, 0));
+      const trunkMat = new BABYLON.StandardMaterial('trunkMat_' + Math.random(), scene);
+      trunkMat.diffuseColor = new BABYLON.Color3(0.4, 0.25, 0.12);
+      trunk.material = trunkMat;
+
+      const crown = BABYLON.MeshBuilder.CreateSphere('crown_' + Math.random(), { diameter: 1.2 }, scene);
+      crown.position = pos.add(new BABYLON.Vector3(0, 1.6, 0));
+      const crownMat = new BABYLON.StandardMaterial('crownMat_' + Math.random(), scene);
+      crownMat.diffuseColor = new BABYLON.Color3(0.2, 0.6, 0.2);
+      crown.material = crownMat;
+    }
+
+    function createBush(pos) {
+      const bush = BABYLON.MeshBuilder.CreateSphere('bush_' + Math.random(), { diameter: 0.6 }, scene);
+      bush.position = pos.add(new BABYLON.Vector3(0, 0.3, 0));
+      const bushMat = new BABYLON.StandardMaterial('bushMat_' + Math.random(), scene);
+      bushMat.diffuseColor = new BABYLON.Color3(0.25, 0.7, 0.25);
+      bush.material = bushMat;
+    }
+
+    const offsets = [
+      new BABYLON.Vector3(ext.x + 1.5, 0, ext.z + 0.5),
+      new BABYLON.Vector3(-ext.x - 1.5, 0, ext.z + 0.5),
+      new BABYLON.Vector3(ext.x + 1.5, 0, -ext.z - 0.5),
+      new BABYLON.Vector3(-ext.x - 1.5, 0, -ext.z - 0.5),
+    ];
+    offsets.forEach((o, i) => {
+      const world = basePos.add(o);
+      if (i % 2 === 0) createTree(world); else createBush(world);
+    });
   }
 
   // Place a small town around origin avoiding the roads near the center lines
@@ -216,6 +300,21 @@
   hairMat.diffuseColor = new BABYLON.Color3(0.36, 0.22, 0.12);
   hair.material = hairMat;
 
+  // Limbs (simple cylinders) + walk animation pivots
+  const limbMat = new BABYLON.StandardMaterial('limbMat', scene);
+  limbMat.diffuseColor = new BABYLON.Color3(0.85, 0.7, 0.6);
+  function createLimb(name, height, diameter) {
+    const limb = BABYLON.MeshBuilder.CreateCylinder(name, { height, diameter }, scene);
+    limb.parent = grace;
+    limb.setPivotPoint(new BABYLON.Vector3(0, height / 2, 0)); // rotate from top
+    limb.material = limbMat;
+    return limb;
+  }
+  const leftLeg = createLimb('LeftLeg', 1.0, 0.18); leftLeg.position = new BABYLON.Vector3(-0.25, 0.5, 0);
+  const rightLeg = createLimb('RightLeg', 1.0, 0.18); rightLeg.position = new BABYLON.Vector3(0.25, 0.5, 0);
+  const leftArm = createLimb('LeftArm', 0.9, 0.14); leftArm.position = new BABYLON.Vector3(-0.55, 1.5, 0.1);
+  const rightArm = createLimb('RightArm', 0.9, 0.14); rightArm.position = new BABYLON.Vector3(0.55, 1.5, 0.1);
+
   // Camera follows Grace
   camera.lockedTarget = grace;
 
@@ -234,6 +333,7 @@
 
   const moveSpeed = 0.12;
   const step = new BABYLON.Vector3();
+  let walkPhase = 0; // for animating limbs
   scene.onBeforeRenderObservable.add(() => {
     // Determine forward direction relative to camera's Y-only orientation
     const dt = engine.getDeltaTime() / 16.67; // scale to ~60fps baseline
@@ -247,7 +347,8 @@
     if (input.l) step.addInPlace(right.scale(-1));
     if (input.r) step.addInPlace(right);
 
-    if (step.lengthSquared() > 0.0001) {
+    const isMoving = step.lengthSquared() > 0.0001;
+    if (isMoving) {
       step.normalize().scaleInPlace(moveSpeed * dt);
       const targetY = Math.atan2(step.x, step.z);
       grace.rotation.y = targetY; // face movement direction
@@ -255,6 +356,16 @@
 
     const moveVector = new BABYLON.Vector3(step.x, scene.gravity.y * 0.5, step.z);
     grace.moveWithCollisions(moveVector);
+
+    // Limb walk animation
+    const targetPhaseSpeed = (isMoving ? 0.35 : 0);
+    walkPhase += targetPhaseSpeed * dt * 60; // scale for frame rate
+    const swing = isMoving ? Math.sin(walkPhase) * 0.6 : 0;
+    const swingOpp = -swing;
+    leftLeg.rotation.x = swing;
+    rightLeg.rotation.x = swingOpp;
+    leftArm.rotation.x = swingOpp * 0.7;
+    rightArm.rotation.x = swing * 0.7;
   });
 
   // Rats
