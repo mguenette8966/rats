@@ -1,8 +1,9 @@
 /* Grace & the Three Rats - Browser 3D Game (Babylon.js)
    Controls:
-   - WASD / Arrow keys: Move
-   - Mouse drag: Rotate camera
-   - E: Interact (pick up nearby rat)
+   - WASD / Arrow keys: Forward/Back + Strafe Left/Right
+   - Mouse move: Turn Grace (yaw)
+   - Hold Left Mouse: Sprint (2x speed)
+   - Space: Interact (pick up nearby rat)
 */
 
 (async function() {
@@ -20,7 +21,7 @@
   camera.rotationOffset = 180;
   camera.lowerRadiusLimit = 8;
   camera.upperRadiusLimit = 20;
-  camera.attachControl(canvas, true);
+  // camera.attachControl(canvas, true); // camera orbit handled by mouse move + rotationOffset sync
 
   const light = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0, 1, 0), scene);
   light.intensity = 0.85;
@@ -37,7 +38,7 @@
     rect.background = '#000000aa';
     rect.cornerRadius = 8;
     rect.height = '50px';
-    rect.width = '40%';
+    rect.width = '60%';
     rect.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
     rect.top = '20px';
 
@@ -145,7 +146,7 @@
       const w = rand(8, 14);
       const d = rand(8, 14);
       const h = rand(6, 12);
-      const house = createBuilding('House_' + i, x, z, w, d, h, new BABYLON.Color3(0.7, 0.6, 0.5));
+      createBuilding('House_' + i, x, z, w, d, h, new BABYLON.Color3(0.7, 0.6, 0.5));
     }
 
     // Special buildings
@@ -208,7 +209,10 @@
   graceMat.diffuseColor = new BABYLON.Color3(0.9, 0.75, 0.6);
   grace.material = graceMat;
 
-  // Brown hair "cap"
+  // Head + Hair
+  const head = BABYLON.MeshBuilder.CreateSphere('GraceHead', { diameter: 0.6 }, scene);
+  head.position = new BABYLON.Vector3(0, 1.9, 0);
+  head.parent = grace;
   const hair = BABYLON.MeshBuilder.CreateSphere('GraceHair', { diameter: 0.9 }, scene);
   hair.position = new BABYLON.Vector3(0, 2.1, 0);
   hair.parent = grace;
@@ -216,10 +220,31 @@
   hairMat.diffuseColor = new BABYLON.Color3(0.36, 0.22, 0.12);
   hair.material = hairMat;
 
+  // Limbs (simple cylinders) + walk animation pivots
+  const limbMat = new BABYLON.StandardMaterial('limbMat', scene);
+  limbMat.diffuseColor = new BABYLON.Color3(0.85, 0.7, 0.6);
+
+  function createLimb(name, height, diameter) {
+    const limb = BABYLON.MeshBuilder.CreateCylinder(name, { height, diameter }, scene);
+    limb.parent = grace;
+    limb.setPivotPoint(new BABYLON.Vector3(0, height / 2, 0)); // rotate from top
+    return limb;
+  }
+
+  const leftLeg = createLimb('LeftLeg', 1.0, 0.18); leftLeg.position = new BABYLON.Vector3(-0.25, 0.5, 0);
+  const rightLeg = createLimb('RightLeg', 1.0, 0.18); rightLeg.position = new BABYLON.Vector3(0.25, 0.5, 0);
+  const leftArm = createLimb('LeftArm', 0.9, 0.14); leftArm.position = new BABYLON.Vector3(-0.55, 1.5, 0.1);
+  const rightArm = createLimb('RightArm', 0.9, 0.14); rightArm.position = new BABYLON.Vector3(0.55, 1.5, 0.1);
+
+  // Anchors for rats to ensure correct attachment positions
+  const headAnchor = new BABYLON.TransformNode('HeadAnchor', scene); headAnchor.parent = grace; headAnchor.position = new BABYLON.Vector3(0, 2.9, 0);
+  const leftShoulderAnchor = new BABYLON.TransformNode('LeftShoulderAnchor', scene); leftShoulderAnchor.parent = grace; leftShoulderAnchor.position = new BABYLON.Vector3(-0.45, 1.6, 0.2);
+  const rightShoulderAnchor = new BABYLON.TransformNode('RightShoulderAnchor', scene); rightShoulderAnchor.parent = grace; rightShoulderAnchor.position = new BABYLON.Vector3(0.45, 1.6, 0.2);
+
   // Camera follows Grace
   camera.lockedTarget = grace;
 
-  // Player movement
+  // Player input and movement
   const input = { f: false, b: false, l: false, r: false };
   function setKey(key, down) {
     switch (key) {
@@ -232,29 +257,62 @@
   window.addEventListener('keydown', (e) => setKey(e.key, true));
   window.addEventListener('keyup', (e) => setKey(e.key, false));
 
-  const moveSpeed = 0.12;
+  let graceYaw = 0; // radians, 0 faces +Z
+  const mouseSensitivity = 0.003;
+  let sprintActive = false;
+  let lastMouseX = null;
+
+  canvas.addEventListener('mousemove', (e) => {
+    const dx = (typeof e.movementX === 'number') ? e.movementX : (lastMouseX == null ? 0 : e.clientX - lastMouseX);
+    lastMouseX = e.clientX;
+    graceYaw -= dx * mouseSensitivity;
+  });
+  canvas.addEventListener('mouseleave', () => { lastMouseX = null; });
+  canvas.addEventListener('mousedown', (e) => { if (e.button === 0) sprintActive = true; });
+  canvas.addEventListener('mouseup', (e) => { if (e.button === 0) sprintActive = false; });
+
+  const baseMoveSpeed = 0.12;
   const step = new BABYLON.Vector3();
+  let walkPhase = 0; // for animating limbs
+
   scene.onBeforeRenderObservable.add(() => {
-    // Determine forward direction relative to camera's Y-only orientation
-    const dt = engine.getDeltaTime() / 16.67; // scale to ~60fps baseline
-    const forward = camera.getFrontPosition(1).subtract(camera.position);
-    forward.y = 0; forward.normalize();
-    const right = BABYLON.Vector3.Cross(forward, BABYLON.Axis.Y).normalize().scale(-1);
+    const dt = engine.getDeltaTime() / 16.67; // ~60fps baseline
 
+    // Update camera to stay behind Grace based on yaw
+    camera.rotationOffset = BABYLON.Tools.ToDegrees(graceYaw) + 180;
+
+    // Calculate local forward/right from yaw (0 faces +Z)
+    const forwardLocal = new BABYLON.Vector3(Math.sin(graceYaw), 0, Math.cos(graceYaw));
+    const rightLocal = new BABYLON.Vector3(Math.cos(graceYaw), 0, -Math.sin(graceYaw));
+
+    // Build movement intent (strafe + forward/back)
     step.copyFromFloats(0, 0, 0);
-    if (input.f) step.addInPlace(forward);
-    if (input.b) step.addInPlace(forward.scale(-1));
-    if (input.l) step.addInPlace(right.scale(-1));
-    if (input.r) step.addInPlace(right);
+    if (input.f) step.addInPlace(forwardLocal);
+    if (input.b) step.addInPlace(forwardLocal.scale(-1));
+    if (input.l) step.addInPlace(rightLocal.scale(-1));
+    if (input.r) step.addInPlace(rightLocal);
 
-    if (step.lengthSquared() > 0.0001) {
-      step.normalize().scaleInPlace(moveSpeed * dt);
-      const targetY = Math.atan2(step.x, step.z);
-      grace.rotation.y = targetY; // face movement direction
+    // Apply movement and facing
+    const isMoving = step.lengthSquared() > 0.0001;
+    const speedMultiplier = sprintActive ? 2.0 : 1.0;
+    if (isMoving) {
+      step.normalize().scaleInPlace(baseMoveSpeed * speedMultiplier * dt);
     }
 
+    grace.rotation.y = graceYaw;
     const moveVector = new BABYLON.Vector3(step.x, scene.gravity.y * 0.5, step.z);
     grace.moveWithCollisions(moveVector);
+
+    // Limb walk animation
+    const targetPhaseSpeed = (isMoving ? 0.35 * speedMultiplier : 0);
+    walkPhase += targetPhaseSpeed * dt * 60; // scale for frame rate
+    const swing = isMoving ? Math.sin(walkPhase) * 0.6 : 0;
+    const swingOpp = -swing;
+
+    leftLeg.rotation.x = swing;
+    rightLeg.rotation.x = swingOpp;
+    leftArm.rotation.x = swingOpp * 0.7;
+    rightArm.rotation.x = swing * 0.7;
   });
 
   // Rats
@@ -264,7 +322,6 @@
     // Body
     const body = BABYLON.MeshBuilder.CreateCapsule('ratBody_' + id, { height: 0.45, radius: 0.12 }, scene);
     body.parent = root;
-    body.rotation = new BABYLON.Vector3(0, 0, 0);
 
     // Head
     const head = BABYLON.MeshBuilder.CreateSphere('ratHead_' + id, { diameter: 0.17 }, scene);
@@ -308,8 +365,6 @@
     earR.material = matEar;
     tail.material = matTail;
 
-    // Shadow receive (optional): disabled for performance
-
     // Collider proxy for proximity detection
     const proxy = BABYLON.MeshBuilder.CreateSphere('ratProxy_' + id, { diameter: 0.6 }, scene);
     proxy.position = BABYLON.Vector3.Zero();
@@ -321,9 +376,9 @@
   }
 
   const rats = [
-    { name: 'Rio', scheme: 'brown', attach: new BABYLON.Vector3(0, 2.2, 0), hint: 'Rio is on your head!' },
-    { name: 'Chunk', scheme: 'blackwhiteA', attach: new BABYLON.Vector3(-0.5, 1.6, 0.2), hint: 'Chunk is on your left shoulder!' },
-    { name: 'Snickerdoodle', scheme: 'blackwhiteB', attach: new BABYLON.Vector3(0.5, 1.6, 0.2), hint: 'Snickerdoodle is on your right shoulder!' },
+    { name: 'Rio', scheme: 'brown', attach: 'head', hint: 'Rio is on your head!' },
+    { name: 'Chunk', scheme: 'blackwhiteA', attach: 'left', hint: 'Chunk is on your left shoulder!' },
+    { name: 'Snickerdoodle', scheme: 'blackwhiteB', attach: 'right', hint: 'Snickerdoodle is on your right shoulder!' },
   ];
 
   const ratEntities = rats.map(r => {
@@ -386,15 +441,18 @@
   let allFound = false;
 
   function attachRatToGrace(rat) {
-    rat.root.setParent(grace);
-    rat.root.position = rat.attach.clone();
+    let anchor = headAnchor;
+    if (rat.attach === 'left') anchor = leftShoulderAnchor;
+    else if (rat.attach === 'right') anchor = rightShoulderAnchor;
+    rat.root.setParent(anchor);
+    rat.root.position = BABYLON.Vector3.Zero();
     rat.root.rotation = new BABYLON.Vector3(0, 0, 0);
     rat.root.metadata.found = true;
     rat.label.isVisible = false;
   }
 
   window.addEventListener('keydown', (e) => {
-    if (e.key !== 'e' && e.key !== 'E') return;
+    if (e.code !== 'Space') return;
     for (const r of ratEntities) {
       if (r.root.metadata.found) continue;
       const d = BABYLON.Vector3.Distance(r.root.position, grace.position);

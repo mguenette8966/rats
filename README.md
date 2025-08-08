@@ -16,9 +16,10 @@ python3 -m http.server 8080 --bind 127.0.0.1
 
 ## Controls
 
-- WASD / Arrow keys: Move
-- Mouse drag: Rotate camera
-- E: Interact (pick up nearby rat)
+- WASD / Arrow keys: Forward/Back + Strafe Left/Right
+- Mouse move: Turn Grace (yaw)
+- Hold Left Mouse: Sprint (2x speed)
+- Space: Interact (pick up nearby rat)
 
 ## Notes
 
