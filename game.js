@@ -346,9 +346,9 @@
   }
   const leftLeg = createLimb('LeftLeg', 1.0, 0.18); leftLeg.position = new BABYLON.Vector3(-0.25, 0.5, 0);
   const rightLeg = createLimb('RightLeg', 1.0, 0.18); rightLeg.position = new BABYLON.Vector3(0.25, 0.5, 0);
-  const shoulderY = 1.2 + (1.4 / 2) - 0.15; // slightly lower arms
-  const leftArm = createLimb('LeftArm', 0.9, 0.14); leftArm.position = new BABYLON.Vector3(-0.5, shoulderY, 0.08);
-  const rightArm = createLimb('RightArm', 0.9, 0.14); rightArm.position = new BABYLON.Vector3(0.5, shoulderY, 0.08);
+  const shoulderY = 1.6; // lower arms more
+  const leftArm = createLimb('LeftArm', 0.9, 0.14); leftArm.position = new BABYLON.Vector3(-0.5, shoulderY, 0.06);
+  const rightArm = createLimb('RightArm', 0.9, 0.14); rightArm.position = new BABYLON.Vector3(0.5, shoulderY, 0.06);
 
   // Clothes: T-shirt, shorts, and sneakers
   const shirtMat = new BABYLON.StandardMaterial('shirtMat', scene); shirtMat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.05);
@@ -450,9 +450,9 @@
     graceCollider.moveWithCollisions(moveVector);
 
     // Limb walk animation
-    const targetPhaseSpeed = (isMoving ? 0.35 : 0);
+    const targetPhaseSpeed = (isMoving ? 0.12 : 0);
     walkPhase += targetPhaseSpeed * dt * 60;
-    const swing = isMoving ? Math.sin(walkPhase) * 0.6 : 0;
+    const swing = isMoving ? Math.sin(walkPhase) * 0.35 : 0;
     const swingOpp = -swing;
     leftLeg.rotation.x = swing;
     rightLeg.rotation.x = swingOpp;
@@ -585,6 +585,34 @@
   }
 
   scene.onBeforeRenderObservable.add(updateRatLabels);
+
+  // Objective HUD (top-left)
+  const hud = new BABYLON.GUI.StackPanel();
+  hud.width = '360px'; hud.isVertical = true;
+  hud.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+  hud.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+  hud.paddingLeft = '10px'; hud.paddingTop = '10px';
+  ui.addControl(hud);
+
+  const title = new BABYLON.GUI.TextBlock();
+  title.text = 'Find Rio, Chunk, and Snickerdoodle and bring them home!';
+  title.color = 'white'; title.fontSize = 18; title.textWrapping = true; hud.addControl(title);
+
+  const checklist = new BABYLON.GUI.StackPanel(); checklist.isVertical = true; checklist.paddingTop = '8px'; hud.addControl(checklist);
+  function makeItem(name){ const t = new BABYLON.GUI.TextBlock(); t.text = `[ ] ${name}`; t.color='white'; t.fontSize=16; t.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT; return t; }
+  const rioItem = makeItem('Rio'); const chunkItem = makeItem('Chunk'); const snickItem = makeItem('Snickerdoodle');
+  checklist.addControl(rioItem); checklist.addControl(chunkItem); checklist.addControl(snickItem);
+
+  function updateChecklist(){
+    function mark(ctrl, found){ const base = ctrl.text.replace(/^[\[\]\sx]+/, ''); ctrl.text = `${found?'[x]':'[ ]'} ${base}`; }
+    const fm = {
+      Rio: ratEntities.find(r=>r.name==='Rio').root.metadata.found,
+      Chunk: ratEntities.find(r=>r.name==='Chunk').root.metadata.found,
+      Snickerdoodle: ratEntities.find(r=>r.name==='Snickerdoodle').root.metadata.found,
+    };
+    mark(rioItem, fm.Rio); mark(chunkItem, fm.Chunk); mark(snickItem, fm.Snickerdoodle);
+  }
+  scene.onBeforeRenderObservable.add(updateChecklist);
 
   let allFound = false;
 
