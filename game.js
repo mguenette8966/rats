@@ -695,6 +695,7 @@
   window.addEventListener('blur', () => { sprintHeld = false; });
 
   const moveSpeed = 0.12;
+  let graceIsRunning = false;
   let sprintHeld = false;
   const step = new BABYLON.Vector3();
   let walkPhase = 0;
@@ -718,6 +719,7 @@
 
     const isMoving = step.lengthSquared() > 0.0001;
     const speedMult = isMoving && sprintHeld ? 2.0 : 1.0;
+    graceIsRunning = isMoving && sprintHeld;
     if (isMoving) {
       step.normalize().scaleInPlace(moveSpeed * speedMult * dt);
       graceVisual.rotation.y = Math.atan2(step.x, step.z);
@@ -826,6 +828,7 @@
 
   // Lincoln spawn
   const lincoln = createLincoln();
+  const lincolnLabel = createLabelForMesh(lincoln.collider, 'Lincoln');
 
   // Candidate spawn points near buildings but accessible
   const spawnPoints = [];
@@ -861,7 +864,7 @@
   })();
 
   // Lincoln AI and animation
-  const lincolnSpeed = 0.18;
+  const lincolnBaseSpeed = moveSpeed;
   const lincolnStopDist = 1.8;
   function lincolnBlocked(dir, maxDist){
     const origin = lincoln.collider.position.add(new BABYLON.Vector3(0, 0.6, 0));
@@ -900,7 +903,8 @@
       let isMovingL = false;
       if (dist > lincolnStopDist) {
         const dir = chooseLincolnDir(toGrace);
-        const step = dir.scale(lincolnSpeed * dt);
+        const curSpeed = lincolnBaseSpeed * (graceIsRunning ? 1.5 : 1.0);
+        const step = dir.scale(curSpeed * dt);
         const moveVec = new BABYLON.Vector3(step.x, 0, step.z);
         lincoln.collider.moveWithCollisions(moveVec);
         // keep grounded and avoid jitter
@@ -930,6 +934,9 @@
       const d = BABYLON.Vector3.Distance(r.root.position, graceCollider.position);
       r.label.isVisible = d < revealDistance;
     }
+    // Lincoln label
+    const dL = BABYLON.Vector3.Distance(lincoln.collider.position, graceCollider.position);
+    lincolnLabel.isVisible = dL < revealDistance;
   }
 
   scene.onBeforeRenderObservable.add(updateRatLabels);
