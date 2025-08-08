@@ -14,12 +14,11 @@
   scene.collisionsEnabled = true;
   scene.gravity = new BABYLON.Vector3(0, -0.5, 0);
 
-  const camera = new BABYLON.FollowCamera('followCamera', new BABYLON.Vector3(0, 5, -10), scene);
-  camera.radius = 12; // follow distance
-  camera.heightOffset = 6;
-  camera.rotationOffset = 180;
+  const camera = new BABYLON.ArcRotateCamera('camera', Math.PI, BABYLON.Angle.FromDegrees(45).radians(), 12, new BABYLON.Vector3(0, 1.2, 0), scene);
   camera.lowerRadiusLimit = 8;
   camera.upperRadiusLimit = 20;
+  camera.lowerBetaLimit = BABYLON.Angle.FromDegrees(10).radians();
+  camera.upperBetaLimit = BABYLON.Angle.FromDegrees(80).radians();
   camera.attachControl(canvas, true);
 
   const light = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0, 1, 0), scene);
@@ -292,9 +291,12 @@
   graceMat.diffuseColor = new BABYLON.Color3(0.9, 0.75, 0.6);
   grace.material = graceMat;
 
-  // Brown hair "cap"
+  // Head + Hair adjusted so torso is above ground
+  const head = BABYLON.MeshBuilder.CreateSphere('GraceHead', { diameter: 0.6 }, scene);
+  head.position = new BABYLON.Vector3(0, 2.1, 0);
+  head.parent = grace;
   const hair = BABYLON.MeshBuilder.CreateSphere('GraceHair', { diameter: 0.9 }, scene);
-  hair.position = new BABYLON.Vector3(0, 2.1, 0);
+  hair.position = new BABYLON.Vector3(0, 2.35, 0);
   hair.parent = grace;
   const hairMat = new BABYLON.StandardMaterial('hairMat', scene);
   hairMat.diffuseColor = new BABYLON.Color3(0.36, 0.22, 0.12);
@@ -318,6 +320,22 @@
   // Camera follows Grace
   camera.lockedTarget = grace;
 
+  // Inverted mouse controls for yaw/tilt while keeping camera behind Grace
+  let graceYaw = 0;
+  const mouseSensitivity = 0.003;
+  const tiltSensitivity = 0.003;
+  let lastMouseX = null;
+  canvas.addEventListener('mousemove', (e) => {
+    const dx = (typeof e.movementX === 'number') ? e.movementX : (lastMouseX == null ? 0 : e.clientX - lastMouseX);
+    lastMouseX = e.clientX;
+    graceYaw += dx * mouseSensitivity; // inverted left/right
+    camera.alpha = -graceYaw - Math.PI / 2; // keep camera behind grace
+    camera.beta -= (e.movementY || 0) * tiltSensitivity; // inverted up/down
+    if (camera.beta < camera.lowerBetaLimit) camera.beta = camera.lowerBetaLimit;
+    if (camera.beta > camera.upperBetaLimit) camera.beta = camera.upperBetaLimit;
+  });
+  canvas.addEventListener('mouseleave', () => { lastMouseX = null; });
+
   // Player movement
   const input = { f: false, b: false, l: false, r: false };
   function setKey(key, down) {
@@ -337,9 +355,8 @@
   scene.onBeforeRenderObservable.add(() => {
     // Determine forward direction relative to camera's Y-only orientation
     const dt = engine.getDeltaTime() / 16.67; // scale to ~60fps baseline
-    const forward = camera.getFrontPosition(1).subtract(camera.position);
-    forward.y = 0; forward.normalize();
-    const right = BABYLON.Vector3.Cross(forward, BABYLON.Axis.Y).normalize().scale(-1);
+    const forward = new BABYLON.Vector3(Math.sin(graceYaw), 0, Math.cos(graceYaw));
+    const right = new BABYLON.Vector3(Math.cos(graceYaw), 0, -Math.sin(graceYaw));
 
     step.copyFromFloats(0, 0, 0);
     if (input.f) step.addInPlace(forward);
