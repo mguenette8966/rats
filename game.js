@@ -34,6 +34,8 @@
 
   // GUI Overlay
   const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('ui');
+  ui.layer.layerMask = 0x0FFFFFFF; // ensure visible
+  ui.rootContainer.zIndex = 3000;
 
   function showToast(message, durationMs = 2000) {
     const rect = new BABYLON.GUI.Rectangle();
@@ -322,13 +324,32 @@
 
   // Head + Hair
   const head = BABYLON.MeshBuilder.CreateSphere('GraceHead', { diameter: 0.6 }, scene);
-  head.parent = graceVisual; head.position = new BABYLON.Vector3(0, 2.25, 0);
-  const hair = BABYLON.MeshBuilder.CreateSphere('GraceHair', { diameter: 0.9 }, scene);
-  hair.parent = graceVisual; hair.position = new BABYLON.Vector3(0, 2.35, 0);
-  hair.scaling = new BABYLON.Vector3(1, 1, 0.5);
+  head.parent = graceVisual; head.position = new BABYLON.Vector3(0, 2.1, 0);
+  const headMat = new BABYLON.StandardMaterial('headMat', scene);
+  headMat.diffuseColor = new BABYLON.Color3(0.93, 0.80, 0.70); // light tan face
+  head.material = headMat;
+
+  const hair = BABYLON.MeshBuilder.CreateSphere('GraceHair', { diameter: 0.8 }, scene);
+  hair.parent = graceVisual; hair.position = new BABYLON.Vector3(0, 2.4, -0.05);
+  hair.scaling = new BABYLON.Vector3(1, 1, 0.7);
   const hairMat = new BABYLON.StandardMaterial('hairMat', scene);
   hairMat.diffuseColor = new BABYLON.Color3(0.36, 0.22, 0.12);
   hair.material = hairMat;
+
+  // Add eyes and mouth
+  const eyeMat = new BABYLON.StandardMaterial('eyeMat', scene); eyeMat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+  const leftEye = BABYLON.MeshBuilder.CreateSphere('LeftEye', { diameter: 0.08 }, scene);
+  leftEye.parent = head; leftEye.position = new BABYLON.Vector3(-0.12, 0.05, 0.25); leftEye.material = eyeMat;
+  const rightEye = leftEye.clone('RightEye'); rightEye.parent = head; rightEye.position = new BABYLON.Vector3(0.12, 0.05, 0.25);
+  const mouth = BABYLON.MeshBuilder.CreateTorus('Mouth', { diameter: 0.22, thickness: 0.03 }, scene);
+  mouth.parent = head; mouth.position = new BABYLON.Vector3(0, -0.1, 0.26); mouth.rotation.x = Math.PI / 2; mouth.material = eyeMat;
+
+  // Extend hair down sides and back to shoulders
+  const hairSideL = BABYLON.MeshBuilder.CreateBox('HairSideL', { width: 0.16, height: 1.0, depth: 0.35 }, scene);
+  hairSideL.parent = graceVisual; hairSideL.position = new BABYLON.Vector3(-0.42, 1.9, -0.03); hairSideL.material = hairMat;
+  const hairSideR = hairSideL.clone('HairSideR'); hairSideR.parent = graceVisual; hairSideR.position = new BABYLON.Vector3(0.42, 1.9, -0.03);
+  const hairBack = BABYLON.MeshBuilder.CreateBox('HairBack', { width: 0.6, height: 1.0, depth: 0.16 }, scene);
+  hairBack.parent = graceVisual; hairBack.position = new BABYLON.Vector3(0, 1.9, -0.32); hairBack.material = hairMat;
 
   // Rat attachment anchors (top of head and shoulders)
   const headAnchor = new BABYLON.TransformNode('HeadAnchor', scene); headAnchor.parent = graceVisual; headAnchor.position = new BABYLON.Vector3(0, 2.65, 0);
@@ -421,8 +442,11 @@
   }
   window.addEventListener('keydown', (e) => setKey(e.key, true));
   window.addEventListener('keyup', (e) => setKey(e.key, false));
+  window.addEventListener('keydown', (e) => { if (e.code === 'Space') sprintHeld = true; });
+  window.addEventListener('keyup', (e) => { if (e.code === 'Space') sprintHeld = false; });
 
   const moveSpeed = 0.12;
+  let sprintHeld = false;
   const step = new BABYLON.Vector3();
   let walkPhase = 0;
   scene.onBeforeRenderObservable.add(() => {
@@ -442,8 +466,9 @@
     if (input.r) step.addInPlace(right);
 
     const isMoving = step.lengthSquared() > 0.0001;
+    const speedMult = isMoving && sprintHeld ? 2.0 : 1.0;
     if (isMoving) {
-      step.normalize().scaleInPlace(moveSpeed * dt);
+      step.normalize().scaleInPlace(moveSpeed * speedMult * dt);
       graceVisual.rotation.y = Math.atan2(step.x, step.z);
     }
 
@@ -474,13 +499,6 @@
     const head = BABYLON.MeshBuilder.CreateSphere('ratHead_' + id, { diameter: 0.17 }, scene);
     head.parent = root;
     head.position = new BABYLON.Vector3(0, 0.18, 0.18);
-    // Nose
-    const nose = BABYLON.MeshBuilder.CreateSphere('ratNose_' + id, { diameter: 0.05 }, scene);
-    const noseMat = new BABYLON.StandardMaterial('ratNoseMat_' + id, scene);
-    noseMat.diffuseColor = new BABYLON.Color3(0.95, 0.6, 0.65);
-    nose.material = noseMat;
-    nose.parent = head;
-    nose.position = new BABYLON.Vector3(0, -0.02, 0.1);
 
     // Ears
     const earL = BABYLON.MeshBuilder.CreateSphere('ratEarL_' + id, { diameter: 0.07 }, scene);
@@ -600,15 +618,19 @@
   hud.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
   hud.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
   hud.paddingLeft = '10px'; hud.paddingTop = '10px';
-  hud.zIndex = 1000; // ensure on top
+  hud.zIndex = 2000;
   ui.addControl(hud);
 
   const title = new BABYLON.GUI.TextBlock();
   title.text = 'Find Rio, Chunk, and Snickerdoodle and bring them home!';
   title.color = 'white'; title.fontSize = 18; title.textWrapping = true; hud.addControl(title);
 
-  const checklist = new BABYLON.GUI.StackPanel(); checklist.isVertical = true; checklist.paddingTop = '8px'; hud.addControl(checklist);
-  function makeItem(name){ const t = new BABYLON.GUI.TextBlock(); t.text = `[ ] ${name}`; t.color='white'; t.fontSize=16; t.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT; return t; }
+  const checklistContainer = new BABYLON.GUI.Rectangle();
+  checklistContainer.thickness = 0; checklistContainer.background = '#00000066'; checklistContainer.width = '100%'; checklistContainer.height = 'auto';
+  hud.addControl(checklistContainer);
+
+  const checklist = new BABYLON.GUI.StackPanel(); checklist.isVertical = true; checklist.paddingTop = '6px'; checklist.paddingBottom = '6px'; checklistContainer.addControl(checklist);
+  function makeItem(name){ const t = new BABYLON.GUI.TextBlock(); t.text = `[ ] ${name}`; t.color='white'; t.fontSize=16; t.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT; t.paddingLeft = 6; t.paddingRight = 6; t.height = '24px'; return t; }
   const rioItem = makeItem('Rio'); const chunkItem = makeItem('Chunk'); const snickItem = makeItem('Snickerdoodle');
   checklist.addControl(rioItem); checklist.addControl(chunkItem); checklist.addControl(snickItem);
 
@@ -639,6 +661,8 @@
 
   window.addEventListener('keydown', (e) => {
     if (!['e','E','Space',' '].includes(e.key) && e.code !== 'Space') return;
+    // If moving and Space is held, treat as sprint only
+    if ((e.code === 'Space' || e.key === ' ') && (input.f || input.b || input.l || input.r)) return;
     for (const r of ratEntities) {
       if (r.root.metadata.found) continue;
       const d = BABYLON.Vector3.Distance(r.root.position, graceCollider.position);
