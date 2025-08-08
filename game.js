@@ -99,6 +99,22 @@
     art.zIndex = 10001;
     stack.addControl(art);
 
+    function showInstructionScreen(onDone) {
+      const instr = new BABYLON.GUI.Rectangle('instructionOverlay');
+      instr.width = 1; instr.height = 1; instr.background = '#000000ff'; instr.thickness = 0;
+      instr.zIndex = 11000; instr.isPointerBlocker = true; instr.clipChildren = false; instr.clipContent = false;
+      ui.addControl(instr);
+
+      const txt = new BABYLON.GUI.TextBlock('instructionText');
+      txt.text = 'Rio, Chunk, and Snickers have gone out to play.\nGo find them all and bring them back home!';
+      txt.color = 'white'; txt.fontSize = 42; txt.textWrapping = true; txt.resizeToFit = true; txt.width = '90%';
+      txt.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+      txt.textVerticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+      instr.addControl(txt);
+
+      setTimeout(() => { ui.removeControl(instr); onDone && onDone(); }, 5000);
+    }
+
     const startBtn = BABYLON.GUI.Button.CreateSimpleButton('startGameBtn', 'Start Game');
     startBtn.width = '300px';
     startBtn.height = '90px';
@@ -108,7 +124,10 @@
     startBtn.cornerRadius = 12;
     startBtn.paddingTop = '40px';
     startBtn.zIndex = 10001;
-    startBtn.onPointerUpObservable.add(() => { gameStarted = true; ui.removeControl(overlay); canvas.focus(); });
+    startBtn.onPointerUpObservable.add(() => {
+      ui.removeControl(overlay);
+      showInstructionScreen(() => { gameStarted = true; canvas.focus(); });
+    });
     stack.addControl(startBtn);
   }
 
@@ -672,6 +691,7 @@
     const matHead = new BABYLON.StandardMaterial('matRatHead_' + id, scene);
     const matEar = new BABYLON.StandardMaterial('matRatEar_' + id, scene);
     const matTail = new BABYLON.StandardMaterial('matRatTail_' + id, scene);
+    const matNose = new BABYLON.StandardMaterial('matRatNose_' + id, scene);
 
     if (colorScheme === 'brown') {
       matBody.diffuseColor = new BABYLON.Color3(0.45, 0.3, 0.18);
@@ -685,12 +705,20 @@
     }
     matEar.diffuseColor = new BABYLON.Color3(0.95, 0.7, 0.75);
     matTail.diffuseColor = new BABYLON.Color3(0.95, 0.7, 0.75);
+    matNose.diffuseColor = new BABYLON.Color3(1.0, 0.5, 0.7);
+    matNose.emissiveColor = new BABYLON.Color3(0.3, 0.15, 0.2);
 
     body.material = matBody;
     head.material = matHead;
     earL.material = matEar;
     earR.material = matEar;
     tail.material = matTail;
+
+    // Nose
+    const nose = BABYLON.MeshBuilder.CreateSphere('ratNose_' + id, { diameter: 0.04 }, scene);
+    nose.parent = head;
+    nose.position = new BABYLON.Vector3(0, 0, 0.1);
+    nose.material = matNose;
 
     // Shadow receive (optional): disabled for performance
 
