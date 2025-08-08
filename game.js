@@ -323,11 +323,30 @@
   // Head + Hair
   const head = BABYLON.MeshBuilder.CreateSphere('GraceHead', { diameter: 0.6 }, scene);
   head.parent = graceVisual; head.position = new BABYLON.Vector3(0, 2.1, 0);
+  const headMat = new BABYLON.StandardMaterial('headMat', scene);
+  headMat.diffuseColor = new BABYLON.Color3(0.93, 0.80, 0.70); // light tan face
+  head.material = headMat;
+
   const hair = BABYLON.MeshBuilder.CreateSphere('GraceHair', { diameter: 0.9 }, scene);
   hair.parent = graceVisual; hair.position = new BABYLON.Vector3(0, 2.35, 0);
   const hairMat = new BABYLON.StandardMaterial('hairMat', scene);
   hairMat.diffuseColor = new BABYLON.Color3(0.36, 0.22, 0.12);
   hair.material = hairMat;
+
+  // Add eyes and mouth
+  const eyeMat = new BABYLON.StandardMaterial('eyeMat', scene); eyeMat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+  const leftEye = BABYLON.MeshBuilder.CreateSphere('LeftEye', { diameter: 0.08 }, scene);
+  leftEye.parent = head; leftEye.position = new BABYLON.Vector3(-0.12, 0.05, 0.25); leftEye.material = eyeMat;
+  const rightEye = leftEye.clone('RightEye'); rightEye.parent = head; rightEye.position = new BABYLON.Vector3(0.12, 0.05, 0.25);
+  const mouth = BABYLON.MeshBuilder.CreateTorus('Mouth', { diameter: 0.22, thickness: 0.03 }, scene);
+  mouth.parent = head; mouth.position = new BABYLON.Vector3(0, -0.1, 0.26); mouth.rotation.x = Math.PI / 2; mouth.material = eyeMat;
+
+  // Extend hair down sides and back to shoulders
+  const hairSideL = BABYLON.MeshBuilder.CreateBox('HairSideL', { width: 0.22, height: 1.0, depth: 0.5 }, scene);
+  hairSideL.parent = graceVisual; hairSideL.position = new BABYLON.Vector3(-0.45, 1.9, 0); hairSideL.material = hairMat;
+  const hairSideR = hairSideL.clone('HairSideR'); hairSideR.parent = graceVisual; hairSideR.position = new BABYLON.Vector3(0.45, 1.9, 0);
+  const hairBack = BABYLON.MeshBuilder.CreateBox('HairBack', { width: 0.7, height: 1.0, depth: 0.22 }, scene);
+  hairBack.parent = graceVisual; hairBack.position = new BABYLON.Vector3(0, 1.9, -0.35); hairBack.material = hairMat;
 
   // Rat attachment anchors (top of head and shoulders)
   const headAnchor = new BABYLON.TransformNode('HeadAnchor', scene); headAnchor.parent = graceVisual; headAnchor.position = new BABYLON.Vector3(0, 2.65, 0);
@@ -592,15 +611,19 @@
   hud.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
   hud.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
   hud.paddingLeft = '10px'; hud.paddingTop = '10px';
-  hud.zIndex = 1000; // ensure on top
+  hud.zIndex = 2000;
   ui.addControl(hud);
 
   const title = new BABYLON.GUI.TextBlock();
   title.text = 'Find Rio, Chunk, and Snickerdoodle and bring them home!';
   title.color = 'white'; title.fontSize = 18; title.textWrapping = true; hud.addControl(title);
 
-  const checklist = new BABYLON.GUI.StackPanel(); checklist.isVertical = true; checklist.paddingTop = '8px'; hud.addControl(checklist);
-  function makeItem(name){ const t = new BABYLON.GUI.TextBlock(); t.text = `[ ] ${name}`; t.color='white'; t.fontSize=16; t.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT; return t; }
+  const checklistContainer = new BABYLON.GUI.Rectangle();
+  checklistContainer.thickness = 0; checklistContainer.background = '#00000066'; checklistContainer.width = '100%'; checklistContainer.height = 'auto';
+  hud.addControl(checklistContainer);
+
+  const checklist = new BABYLON.GUI.StackPanel(); checklist.isVertical = true; checklist.paddingTop = '6px'; checklist.paddingBottom = '6px'; checklistContainer.addControl(checklist);
+  function makeItem(name){ const t = new BABYLON.GUI.TextBlock(); t.text = `[ ] ${name}`; t.color='white'; t.fontSize=16; t.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT; t.paddingLeft = 6; t.paddingRight = 6; t.height = '24px'; return t; }
   const rioItem = makeItem('Rio'); const chunkItem = makeItem('Chunk'); const snickItem = makeItem('Snickerdoodle');
   checklist.addControl(rioItem); checklist.addControl(chunkItem); checklist.addControl(snickItem);
 
