@@ -322,9 +322,10 @@
 
   // Head + Hair
   const head = BABYLON.MeshBuilder.CreateSphere('GraceHead', { diameter: 0.6 }, scene);
-  head.parent = graceVisual; head.position = new BABYLON.Vector3(0, 2.1, 0);
+  head.parent = graceVisual; head.position = new BABYLON.Vector3(0, 2.25, 0);
   const hair = BABYLON.MeshBuilder.CreateSphere('GraceHair', { diameter: 0.9 }, scene);
   hair.parent = graceVisual; hair.position = new BABYLON.Vector3(0, 2.35, 0);
+  hair.scaling = new BABYLON.Vector3(1, 1, 0.5);
   const hairMat = new BABYLON.StandardMaterial('hairMat', scene);
   hairMat.diffuseColor = new BABYLON.Color3(0.36, 0.22, 0.12);
   hair.material = hairMat;
@@ -473,6 +474,13 @@
     const head = BABYLON.MeshBuilder.CreateSphere('ratHead_' + id, { diameter: 0.17 }, scene);
     head.parent = root;
     head.position = new BABYLON.Vector3(0, 0.18, 0.18);
+    // Nose
+    const nose = BABYLON.MeshBuilder.CreateSphere('ratNose_' + id, { diameter: 0.05 }, scene);
+    const noseMat = new BABYLON.StandardMaterial('ratNoseMat_' + id, scene);
+    noseMat.diffuseColor = new BABYLON.Color3(0.95, 0.6, 0.65);
+    nose.material = noseMat;
+    nose.parent = head;
+    nose.position = new BABYLON.Vector3(0, -0.02, 0.1);
 
     // Ears
     const earL = BABYLON.MeshBuilder.CreateSphere('ratEarL_' + id, { diameter: 0.07 }, scene);
