@@ -854,11 +854,42 @@
 
   // Place rats and Lincoln
   ratEntities.forEach(r => { r.root.position = randomSpawn([]); });
-  lincoln.collider.position = randomSpawn([graceCollider.position]);
+  (function(){
+    const p = randomSpawn([graceCollider.position]);
+    p.y = 0.55; // keep capsule centered so feet are on ground
+    lincoln.collider.position = p;
+  })();
 
   // Lincoln AI and animation
-  const lincolnSpeed = 0.08;
+  const lincolnSpeed = 0.18;
   const lincolnStopDist = 1.8;
+  function lincolnBlocked(dir, maxDist){
+    const origin = lincoln.collider.position.add(new BABYLON.Vector3(0, 0.6, 0));
+    const ray = new BABYLON.Ray(origin, dir, maxDist);
+    const hit = scene.pickWithRay(ray, (m)=> m && m.checkCollisions === true);
+    return hit && hit.hit;
+  }
+  function chooseLincolnDir(toGrace){
+    const base = toGrace.normalize();
+    if (!lincolnBlocked(base, 0.8)) return base;
+    const angles = [Math.PI/4, -Math.PI/4, Math.PI/2, -Math.PI/2, (3*Math.PI)/4, -(3*Math.PI)/4];
+    for (const a of angles){
+      const ca = Math.cos(a), sa = Math.sin(a);
+      const cand = new BABYLON.Vector3(base.x*ca - base.z*sa, 0, base.x*sa + base.z*ca);
+      if (!lincolnBlocked(cand, 0.8)) return cand.normalize();
+    }
+    return new BABYLON.Vector3(0,0,0); // stuck
+  }
+  function nudgeFromWalls(){
+    const origin = lincoln.collider.position.add(new BABYLON.Vector3(0,0.6,0));
+    const dirs = [new BABYLON.Vector3(1,0,0), new BABYLON.Vector3(-1,0,0), new BABYLON.Vector3(0,0,1), new BABYLON.Vector3(0,0,-1)];
+    for (const d of dirs){
+      const hit = scene.pickWithRay(new BABYLON.Ray(origin, d, 0.5), (m)=> m && m.checkCollisions === true);
+      if (hit && hit.hit) {
+        lincoln.collider.position.subtractInPlace(d.scale(0.6));
+      }
+    }
+  }
   scene.onBeforeRenderObservable.add(() => {
     if (!gameStarted) return;
     const dt = engine.getDeltaTime() / 1000;
@@ -868,10 +899,12 @@
       const dist = toGrace.length();
       let isMovingL = false;
       if (dist > lincolnStopDist) {
-        const dir = toGrace.normalize();
+        const dir = chooseLincolnDir(toGrace);
         const step = dir.scale(lincolnSpeed * dt);
-        const moveVec = new BABYLON.Vector3(step.x, scene.gravity.y * 0.5, step.z);
+        const moveVec = new BABYLON.Vector3(step.x, 0, step.z);
         lincoln.collider.moveWithCollisions(moveVec);
+        // keep grounded and avoid jitter
+        lincoln.collider.position.y = 0.55;
         lincoln.visual.rotation.y = Math.atan2(dir.x, dir.z);
         isMovingL = true;
       }
@@ -1005,11 +1038,15 @@
           lincoln.state.down = true;
           lincoln.visual.rotation.z = Math.PI / 2;
           lincoln.visual.position = new BABYLON.Vector3(0, -0.6, 0);
+          // Snap collider to ground and nudge from nearby walls so he stays visible
+          lincoln.collider.position.y = 0.55;
+          nudgeFromWalls();
         } else {
           // Stand him back up
           lincoln.state.down = false;
           lincoln.visual.rotation.z = 0;
           lincoln.visual.position = BABYLON.Vector3.Zero();
+          lincoln.collider.position.y = 0.55;
         }
         interacted = true;
       }
