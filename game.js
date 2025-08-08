@@ -20,6 +20,11 @@
   camera.lowerBetaLimit = BABYLON.Angle.FromDegrees(10).radians();
   camera.upperBetaLimit = BABYLON.Angle.FromDegrees(80).radians();
   camera.attachControl(canvas, true);
+  // Reduce default pointer influence (we manage yaw/tilt ourselves)
+  if (camera.inputs && camera.inputs.attached && camera.inputs.attached.pointers) {
+    try { camera.inputs.attached.pointers.buttons = []; } catch (e) {}
+  }
+  camera.panningSensibility = 0;
 
   const light = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0, 1, 0), scene);
   light.intensity = 0.85;
@@ -336,25 +341,52 @@
   }
   const leftLeg = createLimb('LeftLeg', 1.0, 0.18); leftLeg.position = new BABYLON.Vector3(-0.25, 0.5, 0);
   const rightLeg = createLimb('RightLeg', 1.0, 0.18); rightLeg.position = new BABYLON.Vector3(0.25, 0.5, 0);
-  const leftArm = createLimb('LeftArm', 0.9, 0.14); leftArm.position = new BABYLON.Vector3(-0.55, 1.5, 0.1);
-  const rightArm = createLimb('RightArm', 0.9, 0.14); rightArm.position = new BABYLON.Vector3(0.55, 1.5, 0.1);
+  const shoulderY = 1.2 + (1.4 / 2) - 0.05; // based on torso position/height
+  const leftArm = createLimb('LeftArm', 0.9, 0.14); leftArm.position = new BABYLON.Vector3(-0.5, shoulderY, 0.08);
+  const rightArm = createLimb('RightArm', 0.9, 0.14); rightArm.position = new BABYLON.Vector3(0.5, shoulderY, 0.08);
+
+  // Clothes: T-shirt, shorts, and sneakers
+  const shirtMat = new BABYLON.StandardMaterial('shirtMat', scene); shirtMat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+  const shortsMat = new BABYLON.StandardMaterial('shortsMat', scene); shortsMat.diffuseColor = new BABYLON.Color3(0.2, 0.35, 0.6);
+  const shoeMat = new BABYLON.StandardMaterial('shoeMat', scene); shoeMat.diffuseColor = new BABYLON.Color3(0.95, 0.95, 0.95);
+  const soleMat = new BABYLON.StandardMaterial('soleMat', scene); soleMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+
+  // Shirt body (simple cylinder around torso)
+  const shirt = BABYLON.MeshBuilder.CreateCylinder('Shirt', { height: 0.8, diameter: 0.95 }, scene);
+  shirt.parent = graceVisual; shirt.position = new BABYLON.Vector3(0, 1.55, 0); shirt.material = shirtMat;
+
+  // Shorts (box around hips)
+  const shorts = BABYLON.MeshBuilder.CreateBox('Shorts', { width: 0.95, height: 0.45, depth: 0.7 }, scene);
+  shorts.parent = graceVisual; shorts.position = new BABYLON.Vector3(0, 0.95, 0); shorts.material = shortsMat;
+
+  function createShoe(parent, name) {
+    const shoe = BABYLON.MeshBuilder.CreateBox(name + '_Body', { width: 0.25, height: 0.12, depth: 0.45 }, scene);
+    shoe.parent = parent; shoe.position = new BABYLON.Vector3(0, -1.02, 0.1); shoe.material = shoeMat;
+    const sole = BABYLON.MeshBuilder.CreateBox(name + '_Sole', { width: 0.26, height: 0.04, depth: 0.47 }, scene);
+    sole.parent = parent; sole.position = new BABYLON.Vector3(0, -1.09, 0.1); sole.material = soleMat;
+  }
+  createShoe(leftLeg, 'LeftShoe');
+  createShoe(rightLeg, 'RightShoe');
 
   // Camera targets the collider
   camera.setTarget(graceCollider);
 
   // Inverted mouse controls for yaw/tilt while keeping camera behind Grace
   let graceYaw = 0;
+  let graceYawTarget = 0;
+  let betaTarget = camera.beta;
   const mouseSensitivity = 0.003;
   const tiltSensitivity = 0.003;
+  const yawLerp = 0.15;
+  const betaLerp = 0.15;
   let lastMouseX = null;
   canvas.addEventListener('mousemove', (e) => {
     const dx = (typeof e.movementX === 'number') ? e.movementX : (lastMouseX == null ? 0 : e.clientX - lastMouseX);
     lastMouseX = e.clientX;
-    graceYaw += dx * mouseSensitivity; // inverted left/right
-    camera.alpha = -graceYaw - Math.PI / 2; // keep camera behind grace
-    camera.beta -= (e.movementY || 0) * tiltSensitivity; // inverted up/down
-    if (camera.beta < camera.lowerBetaLimit) camera.beta = camera.lowerBetaLimit;
-    if (camera.beta > camera.upperBetaLimit) camera.beta = camera.upperBetaLimit;
+    graceYawTarget += dx * mouseSensitivity; // inverted left/right
+    betaTarget -= (e.movementY || 0) * tiltSensitivity; // inverted up/down
+    if (betaTarget < camera.lowerBetaLimit) betaTarget = camera.lowerBetaLimit;
+    if (betaTarget > camera.upperBetaLimit) betaTarget = camera.upperBetaLimit;
   });
   canvas.addEventListener('mouseleave', () => { lastMouseX = null; });
 
@@ -376,6 +408,11 @@
   let walkPhase = 0;
   scene.onBeforeRenderObservable.add(() => {
     const dt = engine.getDeltaTime() / 16.67;
+    // Smooth yaw/beta
+    graceYaw += (graceYawTarget - graceYaw) * yawLerp;
+    camera.beta += (betaTarget - camera.beta) * betaLerp;
+    camera.alpha = -graceYaw - Math.PI / 2;
+
     const forward = new BABYLON.Vector3(Math.sin(graceYaw), 0, Math.cos(graceYaw));
     const right = new BABYLON.Vector3(Math.cos(graceYaw), 0, -Math.sin(graceYaw));
 
