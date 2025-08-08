@@ -747,6 +747,9 @@
     return { ...r, ...m, label };
   });
 
+  // Lincoln spawn
+  const lincoln = createLincoln();
+
   // Candidate spawn points near buildings but accessible
   const spawnPoints = [];
   buildings.forEach(b => {
@@ -766,19 +769,45 @@
       const p = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
       if (!p) break;
       let ok = true;
-      for (const e of exclusions) {
-        if (BABYLON.Vector3.Distance(e, p) < 3) { ok = false; break; }
-      }
+      for (const ex of exclusions) { if (BABYLON.Vector3.Distance(p, ex) < 3.0) { ok = false; break; } }
       if (ok) return p.clone();
     }
-    return new BABYLON.Vector3(rand(-50, 50), 0, rand(-50, 50));
+    return new BABYLON.Vector3(0, 0, 0);
   }
 
-  const placed = [];
-  ratEntities.forEach((r, idx) => {
-    const p = randomSpawn(placed);
-    placed.push(p);
-    r.root.position = new BABYLON.Vector3(p.x, 0.15, p.z);
+  // Place rats and Lincoln
+  ratEntities.forEach(r => { r.root.position = randomSpawn([]); });
+  lincoln.collider.position = randomSpawn([graceCollider.position]);
+
+  // Lincoln AI and animation
+  const lincolnSpeed = 0.08;
+  const lincolnStopDist = 1.8;
+  scene.onBeforeRenderObservable.add(() => {
+    if (!gameStarted) return;
+    const dt = engine.getDeltaTime() / 1000;
+    if (!lincoln.state.down) {
+      const toGrace = graceCollider.position.subtract(lincoln.collider.position);
+      toGrace.y = 0;
+      const dist = toGrace.length();
+      let isMovingL = false;
+      if (dist > lincolnStopDist) {
+        const dir = toGrace.normalize();
+        const step = dir.scale(lincolnSpeed * dt);
+        const moveVec = new BABYLON.Vector3(step.x, scene.gravity.y * 0.5, step.z);
+        lincoln.collider.moveWithCollisions(moveVec);
+        lincoln.visual.rotation.y = Math.atan2(dir.x, dir.z);
+        isMovingL = true;
+      }
+      // Walk anim
+      const targetPhaseSpeed = (isMovingL ? 0.12 : 0);
+      lincoln.state.walkPhase += targetPhaseSpeed * dt * 60;
+      const swing = isMovingL ? Math.sin(lincoln.state.walkPhase) * 0.28 : 0;
+      const swingOpp = -swing;
+      lincoln.limbs.leftLeg.rotation.x = swing;
+      lincoln.limbs.rightLeg.rotation.x = swingOpp;
+      lincoln.limbs.leftArm.rotation.x = swingOpp * 0.7;
+      lincoln.limbs.rightArm.rotation.x = swing * 0.7;
+    }
   });
 
   // Proximity & interaction
@@ -882,6 +911,29 @@
       if (d < interactDistance) {
         attachRatToGrace(r);
         showToast(`You found ${r.name}! ${r.hint}`, 2500);
+        interacted = true;
+      }
+    }
+
+    // Interact with Lincoln
+    if (!interacted) {
+      const dL = BABYLON.Vector3.Distance(lincoln.collider.position, graceCollider.position);
+      if (dL < interactDistance) {
+        if (!lincoln.state.down) {
+          // Simple kick animation on Grace's right leg
+          const prev = rightLeg.rotation.x;
+          rightLeg.rotation.x = prev - 1.1;
+          setTimeout(() => { rightLeg.rotation.x = prev; }, 250);
+          // Knock Lincoln down
+          lincoln.state.down = true;
+          lincoln.visual.rotation.z = Math.PI / 2;
+          lincoln.visual.position = new BABYLON.Vector3(0, -0.6, 0);
+        } else {
+          // Stand him back up
+          lincoln.state.down = false;
+          lincoln.visual.rotation.z = 0;
+          lincoln.visual.position = BABYLON.Vector3.Zero();
+        }
         interacted = true;
       }
     }
