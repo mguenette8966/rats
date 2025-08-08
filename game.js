@@ -385,12 +385,12 @@
   const shirt = BABYLON.MeshBuilder.CreateCylinder('Shirt', { height: 0.9, diameter: 0.95 }, scene);
   shirt.parent = graceVisual; shirt.position = new BABYLON.Vector3(0, 1.55, 0); shirt.material = shirtMat;
   // Short sleeves attached to arms
-  const leftSleeve = BABYLON.MeshBuilder.CreateCylinder('LeftSleeve', { height: 0.25, diameter: 0.32 }, scene);
-  leftSleeve.parent = leftArm; leftSleeve.position = new BABYLON.Vector3(0, -0.2, 0); leftSleeve.material = shirtMat;
-  const rightSleeve = leftSleeve.clone('RightSleeve'); rightSleeve.parent = rightArm; rightSleeve.position = new BABYLON.Vector3(0, -0.2, 0);
+  const leftSleeve = BABYLON.MeshBuilder.CreateCylinder('LeftSleeve', { height: 0.25, diameter: 0.34 }, scene);
+  leftSleeve.parent = leftArm; leftSleeve.position = new BABYLON.Vector3(0, -0.05, 0); leftSleeve.material = shirtMat;
+  const rightSleeve = leftSleeve.clone('RightSleeve'); rightSleeve.parent = rightArm; rightSleeve.position = new BABYLON.Vector3(0, -0.05, 0);
 
   // Shorts (larger to stand out)
-  const shorts = BABYLON.MeshBuilder.CreateBox('Shorts', { width: 1.05, height: 0.68, depth: 0.85 }, scene);
+  const shorts = BABYLON.MeshBuilder.CreateBox('Shorts', { width: 0.85, height: 0.68, depth: 0.70 }, scene);
   shorts.parent = graceVisual; shorts.position = new BABYLON.Vector3(0, 0.85, 0); shorts.material = shortsMat;
 
   function createShoe(parent, name) {
@@ -446,8 +446,17 @@
   }
   window.addEventListener('keydown', (e) => setKey(e.key, true));
   window.addEventListener('keyup', (e) => setKey(e.key, false));
-  window.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.key === ' ') { e.preventDefault(); sprintHeld = true; } });
-  window.addEventListener('keyup', (e) => { if (e.code === 'Space' || e.key === ' ') { e.preventDefault(); sprintHeld = false; } });
+  window.addEventListener('keydown', (e) => {
+    const isSpace = e.code === 'Space' || e.key === ' ';
+    const isShift = e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.key === 'Shift';
+    if (isSpace || isShift) { e.preventDefault(); sprintHeld = true; }
+  });
+  window.addEventListener('keyup', (e) => {
+    const isSpace = e.code === 'Space' || e.key === ' ';
+    const isShift = e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.key === 'Shift';
+    if (isSpace || isShift) { e.preventDefault(); sprintHeld = false; }
+  });
+  window.addEventListener('blur', () => { sprintHeld = false; });
 
   const moveSpeed = 0.12;
   let sprintHeld = false;
