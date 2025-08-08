@@ -8,6 +8,7 @@
 (async function() {
   const canvas = document.getElementById('renderCanvas');
   const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, disableWebGL2Support: false });
+  canvas.setAttribute('tabindex', '1');
 
   const scene = new BABYLON.Scene(engine);
   scene.clearColor = new BABYLON.Color4(0.65, 0.82, 0.97, 1.0);
@@ -327,6 +328,8 @@
   head.parent = graceVisual; head.position = new BABYLON.Vector3(0, 2.1, 0);
   const headMat = new BABYLON.StandardMaterial('headMat', scene);
   headMat.diffuseColor = new BABYLON.Color3(0.93, 0.80, 0.70); // light tan face
+  headMat.specularColor = new BABYLON.Color3(0, 0, 0);
+  headMat.emissiveColor = new BABYLON.Color3(0.15, 0.12, 0.10);
   head.material = headMat;
 
   const hair = BABYLON.MeshBuilder.CreateSphere('GraceHair', { diameter: 0.8 }, scene);
@@ -425,6 +428,7 @@
     if (document.pointerLockElement !== canvas) {
       canvas.requestPointerLock?.();
     }
+    canvas.focus();
   });
   document.addEventListener('pointerlockchange', () => {
     if (document.pointerLockElement !== canvas) { lastMouseX = null; }
@@ -442,8 +446,8 @@
   }
   window.addEventListener('keydown', (e) => setKey(e.key, true));
   window.addEventListener('keyup', (e) => setKey(e.key, false));
-  window.addEventListener('keydown', (e) => { if (e.code === 'Space') sprintHeld = true; });
-  window.addEventListener('keyup', (e) => { if (e.code === 'Space') sprintHeld = false; });
+  window.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.key === ' ') { e.preventDefault(); sprintHeld = true; } });
+  window.addEventListener('keyup', (e) => { if (e.code === 'Space' || e.key === ' ') { e.preventDefault(); sprintHeld = false; } });
 
   const moveSpeed = 0.12;
   let sprintHeld = false;
