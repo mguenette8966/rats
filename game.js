@@ -893,6 +893,24 @@
       }
     }
   }
+  function lincolnStandUp(){
+    lincoln.state.down = false;
+    lincoln.visual.rotation.z = 0;
+    lincoln.visual.position = BABYLON.Vector3.Zero();
+    lincoln.collider.position.y = 0.55;
+    if (lincoln.state.autoUpTimer){ clearTimeout(lincoln.state.autoUpTimer); lincoln.state.autoUpTimer = null; }
+  }
+  function lincolnKnockDown(){
+    lincoln.state.down = true;
+    lincoln.visual.rotation.z = Math.PI / 2;
+    lincoln.visual.position = new BABYLON.Vector3(0, -0.6, 0);
+    lincoln.collider.position.y = 0.55;
+    nudgeFromWalls();
+    if (lincoln.state.autoUpTimer){ clearTimeout(lincoln.state.autoUpTimer); }
+    lincoln.state.autoUpTimer = setTimeout(() => {
+      if (lincoln.state.down) lincolnStandUp();
+    }, 10000);
+  }
   scene.onBeforeRenderObservable.add(() => {
     if (!gameStarted) return;
     const dt = engine.getDeltaTime() / 1000;
@@ -1041,19 +1059,9 @@
           const prev = rightLeg.rotation.x;
           rightLeg.rotation.x = prev - 1.1;
           setTimeout(() => { rightLeg.rotation.x = prev; }, 250);
-          // Knock Lincoln down
-          lincoln.state.down = true;
-          lincoln.visual.rotation.z = Math.PI / 2;
-          lincoln.visual.position = new BABYLON.Vector3(0, -0.6, 0);
-          // Snap collider to ground and nudge from nearby walls so he stays visible
-          lincoln.collider.position.y = 0.55;
-          nudgeFromWalls();
+          lincolnKnockDown();
         } else {
-          // Stand him back up
-          lincoln.state.down = false;
-          lincoln.visual.rotation.z = 0;
-          lincoln.visual.position = BABYLON.Vector3.Zero();
-          lincoln.collider.position.y = 0.55;
+          lincolnStandUp();
         }
         interacted = true;
       }
