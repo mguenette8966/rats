@@ -34,6 +34,8 @@
 
   // GUI Overlay
   const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('ui');
+  ui.layer.layerMask = 0x0FFFFFFF; // ensure visible
+  ui.rootContainer.zIndex = 3000;
 
   function showToast(message, durationMs = 2000) {
     const rect = new BABYLON.GUI.Rectangle();
@@ -327,8 +329,9 @@
   headMat.diffuseColor = new BABYLON.Color3(0.93, 0.80, 0.70); // light tan face
   head.material = headMat;
 
-  const hair = BABYLON.MeshBuilder.CreateSphere('GraceHair', { diameter: 0.9 }, scene);
-  hair.parent = graceVisual; hair.position = new BABYLON.Vector3(0, 2.35, 0);
+  const hair = BABYLON.MeshBuilder.CreateSphere('GraceHair', { diameter: 0.8 }, scene);
+  hair.parent = graceVisual; hair.position = new BABYLON.Vector3(0, 2.4, -0.05);
+  hair.scaling = new BABYLON.Vector3(1, 1, 0.7);
   const hairMat = new BABYLON.StandardMaterial('hairMat', scene);
   hairMat.diffuseColor = new BABYLON.Color3(0.36, 0.22, 0.12);
   hair.material = hairMat;
@@ -342,11 +345,11 @@
   mouth.parent = head; mouth.position = new BABYLON.Vector3(0, -0.1, 0.26); mouth.rotation.x = Math.PI / 2; mouth.material = eyeMat;
 
   // Extend hair down sides and back to shoulders
-  const hairSideL = BABYLON.MeshBuilder.CreateBox('HairSideL', { width: 0.22, height: 1.0, depth: 0.5 }, scene);
-  hairSideL.parent = graceVisual; hairSideL.position = new BABYLON.Vector3(-0.45, 1.9, 0); hairSideL.material = hairMat;
-  const hairSideR = hairSideL.clone('HairSideR'); hairSideR.parent = graceVisual; hairSideR.position = new BABYLON.Vector3(0.45, 1.9, 0);
-  const hairBack = BABYLON.MeshBuilder.CreateBox('HairBack', { width: 0.7, height: 1.0, depth: 0.22 }, scene);
-  hairBack.parent = graceVisual; hairBack.position = new BABYLON.Vector3(0, 1.9, -0.35); hairBack.material = hairMat;
+  const hairSideL = BABYLON.MeshBuilder.CreateBox('HairSideL', { width: 0.16, height: 1.0, depth: 0.35 }, scene);
+  hairSideL.parent = graceVisual; hairSideL.position = new BABYLON.Vector3(-0.42, 1.9, -0.03); hairSideL.material = hairMat;
+  const hairSideR = hairSideL.clone('HairSideR'); hairSideR.parent = graceVisual; hairSideR.position = new BABYLON.Vector3(0.42, 1.9, -0.03);
+  const hairBack = BABYLON.MeshBuilder.CreateBox('HairBack', { width: 0.6, height: 1.0, depth: 0.16 }, scene);
+  hairBack.parent = graceVisual; hairBack.position = new BABYLON.Vector3(0, 1.9, -0.32); hairBack.material = hairMat;
 
   // Rat attachment anchors (top of head and shoulders)
   const headAnchor = new BABYLON.TransformNode('HeadAnchor', scene); headAnchor.parent = graceVisual; headAnchor.position = new BABYLON.Vector3(0, 2.65, 0);
@@ -439,8 +442,11 @@
   }
   window.addEventListener('keydown', (e) => setKey(e.key, true));
   window.addEventListener('keyup', (e) => setKey(e.key, false));
+  window.addEventListener('keydown', (e) => { if (e.code === 'Space') sprintHeld = true; });
+  window.addEventListener('keyup', (e) => { if (e.code === 'Space') sprintHeld = false; });
 
   const moveSpeed = 0.12;
+  let sprintHeld = false;
   const step = new BABYLON.Vector3();
   let walkPhase = 0;
   scene.onBeforeRenderObservable.add(() => {
@@ -460,8 +466,9 @@
     if (input.r) step.addInPlace(right);
 
     const isMoving = step.lengthSquared() > 0.0001;
+    const speedMult = isMoving && sprintHeld ? 2.0 : 1.0;
     if (isMoving) {
-      step.normalize().scaleInPlace(moveSpeed * dt);
+      step.normalize().scaleInPlace(moveSpeed * speedMult * dt);
       graceVisual.rotation.y = Math.atan2(step.x, step.z);
     }
 
@@ -654,6 +661,8 @@
 
   window.addEventListener('keydown', (e) => {
     if (!['e','E','Space',' '].includes(e.key) && e.code !== 'Space') return;
+    // If moving and Space is held, treat as sprint only
+    if ((e.code === 'Space' || e.key === ' ') && (input.f || input.b || input.l || input.r)) return;
     for (const r of ratEntities) {
       if (r.root.metadata.found) continue;
       const d = BABYLON.Vector3.Distance(r.root.position, graceCollider.position);
