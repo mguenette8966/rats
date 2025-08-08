@@ -530,6 +530,83 @@
   const leftArm = createLimb('LeftArm', 0.9, 0.14); leftArm.position = new BABYLON.Vector3(-0.5, shoulderY, 0.06);
   const rightArm = createLimb('RightArm', 0.9, 0.14); rightArm.position = new BABYLON.Vector3(0.5, shoulderY, 0.06);
 
+  // Lincoln (brother) - half-size follower NPC
+  function createLincoln() {
+    const collider = BABYLON.MeshBuilder.CreateCapsule('LincolnCollider', { height: 1.0, radius: 0.25 }, scene);
+    collider.position = new BABYLON.Vector3(0, 0.55, 0);
+    collider.checkCollisions = true;
+    collider.ellipsoid = new BABYLON.Vector3(0.25, 0.5, 0.25);
+    collider.ellipsoidOffset = new BABYLON.Vector3(0, 0.5, 0);
+    collider.isVisible = false;
+
+    const visual = new BABYLON.TransformNode('LincolnVisual', scene);
+    visual.parent = collider;
+    visual.scaling = new BABYLON.Vector3(0.5, 0.5, 0.5);
+
+    // Torso
+    const torsoL = BABYLON.MeshBuilder.CreateCapsule('LincolnTorso', { height: 1.4, radius: 0.35 }, scene);
+    torsoL.parent = visual; torsoL.position = new BABYLON.Vector3(0, 1.2, 0);
+    torsoL.material = graceMat;
+
+    // Head (no hair)
+    const headL = BABYLON.MeshBuilder.CreateSphere('LincolnHead', { diameter: 0.6 }, scene);
+    headL.parent = visual; headL.position = new BABYLON.Vector3(0, 2.21, 0);
+    headL.material = headMat;
+
+    // Eyes & mouth
+    const leftEyeL = BABYLON.MeshBuilder.CreateSphere('LincolnLeftEye', { diameter: 0.08 }, scene);
+    leftEyeL.parent = headL; leftEyeL.position = new BABYLON.Vector3(-0.12, 0.05, 0.25); leftEyeL.material = eyeMat;
+    const rightEyeL = leftEyeL.clone('LincolnRightEye'); rightEyeL.parent = headL; rightEyeL.position = new BABYLON.Vector3(0.12, 0.05, 0.25);
+    const mouthL = BABYLON.MeshBuilder.CreateTorus('LincolnMouth', { diameter: 0.22, thickness: 0.03 }, scene);
+    mouthL.parent = headL; mouthL.position = new BABYLON.Vector3(0, -0.1, 0.26); mouthL.rotation.x = Math.PI / 2; mouthL.material = eyeMat;
+
+    // Orange clothes
+    const orangeMat = new BABYLON.StandardMaterial('lincolnOrangeMat', scene);
+    orangeMat.diffuseColor = new BABYLON.Color3(1.0, 0.5, 0.0);
+
+    const shirtL = BABYLON.MeshBuilder.CreateCylinder('LincolnShirt', { height: 0.9, diameter: 0.95 }, scene);
+    shirtL.parent = visual; shirtL.position = new BABYLON.Vector3(0, 1.55, 0); shirtL.material = orangeMat;
+
+    const shortsL = BABYLON.MeshBuilder.CreateBox('LincolnShorts', { width: 0.85, height: 0.68, depth: 0.70 }, scene);
+    shortsL.parent = visual; shortsL.position = new BABYLON.Vector3(0, 0.85, 0); shortsL.material = orangeMat;
+
+    // Arms & legs
+    function createLimbL(name, height, diameter) {
+      const limb = BABYLON.MeshBuilder.CreateCylinder(name, { height, diameter }, scene);
+      limb.parent = visual;
+      limb.setPivotPoint(new BABYLON.Vector3(0, height / 2, 0));
+      limb.material = limbMat;
+      return limb;
+    }
+    const leftLegL = createLimbL('LincolnLeftLeg', 1.0, 0.18); leftLegL.position = new BABYLON.Vector3(-0.25, 0.5, 0);
+    const rightLegL = createLimbL('LincolnRightLeg', 1.0, 0.18); rightLegL.position = new BABYLON.Vector3(0.25, 0.5, 0);
+    const shoulderYL = 1.6;
+    const leftArmL = createLimbL('LincolnLeftArm', 0.9, 0.14); leftArmL.position = new BABYLON.Vector3(-0.5, shoulderYL, 0.06);
+    const rightArmL = createLimbL('LincolnRightArm', 0.9, 0.14); rightArmL.position = new BABYLON.Vector3(0.5, shoulderYL, 0.06);
+
+    // Shoes
+    function createShoeL(parent, name) {
+      const shoe = BABYLON.MeshBuilder.CreateBox(name + '_Body', { width: 0.28, height: 0.12, depth: 0.5 }, scene);
+      shoe.parent = parent; shoe.position = new BABYLON.Vector3(0, -1.02, 0.12); shoe.material = orangeMat;
+      return shoe;
+    }
+    createShoeL(leftLegL, 'LincolnLeftShoe'); createShoeL(rightLegL, 'LincolnRightShoe');
+
+    // Orange baseball cap
+    const capTop = BABYLON.MeshBuilder.CreateSphere('LincolnCapTop', { diameter: 0.7, segments: 8 }, scene);
+    capTop.parent = visual; capTop.position = new BABYLON.Vector3(0, 2.38, 0);
+    capTop.scaling = new BABYLON.Vector3(1, 0.5, 1);
+    capTop.material = orangeMat;
+    const capBrim = BABYLON.MeshBuilder.CreateBox('LincolnCapBrim', { width: 0.5, height: 0.06, depth: 0.25 }, scene);
+    capBrim.parent = visual; capBrim.position = new BABYLON.Vector3(0, 2.28, 0.35); capBrim.material = orangeMat;
+
+    return {
+      collider, visual,
+      limbs: { leftLeg: leftLegL, rightLeg: rightLegL, leftArm: leftArmL, rightArm: rightArmL },
+      state: { down: false, walkPhase: 0 }
+    };
+  }
+
   // Clothes: T-shirt, shorts, and sneakers
   const shirtMat = new BABYLON.StandardMaterial('shirtMat', scene); shirtMat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.05);
   const shortsMat = new BABYLON.StandardMaterial('shortsMat', scene); shortsMat.diffuseColor = new BABYLON.Color3(0.2, 0.35, 0.6);
