@@ -63,22 +63,51 @@
   function createTitleScreen() {
     const overlay = new BABYLON.GUI.Rectangle('titleOverlay');
     overlay.width = 1; overlay.height = 1; overlay.background = '#000000ff'; overlay.thickness = 0;
-    overlay.zIndex = 5000;
+    overlay.zIndex = 10000;
+    overlay.isPointerBlocker = true;
+    overlay.clipChildren = false;
+    overlay.clipContent = false;
     ui.addControl(overlay);
 
-    const stack = new BABYLON.GUI.StackPanel(); stack.isVertical = true; stack.width = '90%'; overlay.addControl(stack);
+    const stack = new BABYLON.GUI.StackPanel();
+    stack.isVertical = true;
+    stack.width = '95%';
+    stack.height = '100%';
+    stack.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+    stack.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+    overlay.addControl(stack);
 
     const title = new BABYLON.GUI.TextBlock();
-    title.text = 'Hide and Squeak'; title.color = 'white'; title.fontSize = 72; title.paddingTop = '120px';
+    title.text = 'Hide and Squeak';
+    title.color = 'white';
+    title.fontSize = 70;
+    title.paddingTop = '0px';
+    title.textWrapping = true;
+    title.resizeToFit = true;
+    title.zIndex = 10001;
     stack.addControl(title);
 
     const art = new BABYLON.GUI.TextBlock();
     art.text = '🐭 Rio    🐭 Chunk    🐭 Snickerdoodle\n🌸 🌼 🌺   Find all 3 and bring them home!';
-    art.color = 'white'; art.fontSize = 32; art.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER; art.paddingTop = '40px';
+    art.color = 'white';
+    art.fontSize = 32;
+    art.width = '95%';
+    art.textWrapping = true;
+    art.resizeToFit = true;
+    art.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+    art.paddingTop = '24px';
+    art.zIndex = 10001;
     stack.addControl(art);
 
     const startBtn = BABYLON.GUI.Button.CreateSimpleButton('startGameBtn', 'Start Game');
-    startBtn.width = '280px'; startBtn.height = '80px'; startBtn.color = 'white'; startBtn.background = '#2b7a2b'; startBtn.fontSize = 30; startBtn.cornerRadius = 12; startBtn.paddingTop = '60px';
+    startBtn.width = '300px';
+    startBtn.height = '90px';
+    startBtn.color = 'white';
+    startBtn.background = '#2b7a2b';
+    startBtn.fontSize = 32;
+    startBtn.cornerRadius = 12;
+    startBtn.paddingTop = '40px';
+    startBtn.zIndex = 10001;
     startBtn.onPointerUpObservable.add(() => { gameStarted = true; ui.removeControl(overlay); canvas.focus(); });
     stack.addControl(startBtn);
   }
