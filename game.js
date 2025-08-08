@@ -62,23 +62,23 @@
 
   function createTitleScreen() {
     const overlay = new BABYLON.GUI.Rectangle('titleOverlay');
-    overlay.width = 1; overlay.height = 1; overlay.background = '#000000ee'; overlay.thickness = 0;
+    overlay.width = 1; overlay.height = 1; overlay.background = '#000000ff'; overlay.thickness = 0;
     overlay.zIndex = 5000;
     ui.addControl(overlay);
 
-    const stack = new BABYLON.GUI.StackPanel(); stack.isVertical = true; stack.width = '80%'; overlay.addControl(stack);
+    const stack = new BABYLON.GUI.StackPanel(); stack.isVertical = true; stack.width = '90%'; overlay.addControl(stack);
 
     const title = new BABYLON.GUI.TextBlock();
-    title.text = 'Hide and Squeak'; title.color = 'white'; title.fontSize = 64; title.paddingTop = '100px';
+    title.text = 'Hide and Squeak'; title.color = 'white'; title.fontSize = 72; title.paddingTop = '120px';
     stack.addControl(title);
 
     const art = new BABYLON.GUI.TextBlock();
     art.text = '🐭 Rio    🐭 Chunk    🐭 Snickerdoodle\n🌸 🌼 🌺   Find all 3 and bring them home!';
-    art.color = 'white'; art.fontSize = 28; art.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER; art.paddingTop = '30px';
+    art.color = 'white'; art.fontSize = 32; art.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER; art.paddingTop = '40px';
     stack.addControl(art);
 
     const startBtn = BABYLON.GUI.Button.CreateSimpleButton('startGameBtn', 'Start Game');
-    startBtn.width = '240px'; startBtn.height = '70px'; startBtn.color = 'white'; startBtn.background = '#2b7a2b'; startBtn.fontSize = 28; startBtn.cornerRadius = 10; startBtn.paddingTop = '40px';
+    startBtn.width = '280px'; startBtn.height = '80px'; startBtn.color = 'white'; startBtn.background = '#2b7a2b'; startBtn.fontSize = 30; startBtn.cornerRadius = 12; startBtn.paddingTop = '60px';
     startBtn.onPointerUpObservable.add(() => { gameStarted = true; ui.removeControl(overlay); canvas.focus(); });
     stack.addControl(startBtn);
   }
@@ -522,6 +522,7 @@
   const betaLerp = 0.15;
   let lastMouseX = null;
   canvas.addEventListener('mousemove', (e) => {
+    if (!gameStarted) return;
     const dx = (typeof e.movementX === 'number') ? e.movementX : (lastMouseX == null ? 0 : e.clientX - lastMouseX);
     lastMouseX = e.clientX;
     graceYawTarget += dx * mouseSensitivity; // inverted left/right
@@ -532,6 +533,7 @@
   canvas.addEventListener('mouseleave', () => { lastMouseX = null; });
   // Pointer lock to allow continuous rotation at screen edges
   canvas.addEventListener('click', () => {
+    if (!gameStarted) return;
     if (document.pointerLockElement !== canvas) {
       canvas.requestPointerLock?.();
     }
