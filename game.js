@@ -734,6 +734,11 @@
       Snickerdoodle: ratEntities.find(r=>r.name==='Snickerdoodle').root.metadata.found,
     };
     mark(rioItem, fm.Rio); mark(chunkItem, fm.Chunk); mark(snickItem, fm.Snickerdoodle);
+    // When all found, make guidance very clear
+    if (fm.Rio && fm.Chunk && fm.Snickerdoodle) {
+      title.text = "All rats found! Go to Grace's House door to finish!";
+      if (homeMarker) homeMarker.isVisible = true;
+    }
   }
   scene.onBeforeRenderObservable.add(updateChecklist);
 
@@ -756,6 +761,17 @@
     // If moving and Space is held, treat as sprint only
     if ((e.code === 'Space' || e.key === ' ') && (input.f || input.b || input.l || input.r)) return;
 
+    const allFoundNow = ratEntities.every(r => r.root.metadata.found);
+
+    // Door interaction first: if near door but not all rats found, inform player
+    if (home && home.metadata && home.metadata.door) {
+      const dDoor = BABYLON.Vector3.Distance(home.metadata.door.position, graceCollider.position);
+      if (dDoor < 2.2 && !allFoundNow) {
+        showToast('You need to find all three rats first!', 2500);
+        return;
+      }
+    }
+
     // Interact with nearby rat
     let interacted = false;
     for (const r of ratEntities) {
@@ -769,16 +785,16 @@
     }
 
     // If all rats found, require interacting with the home door to win
-    if (ratEntities.every(r => r.root.metadata.found)) {
+    if (allFoundNow) {
       if (home && home.metadata && home.metadata.door) {
         const dDoor = BABYLON.Vector3.Distance(home.metadata.door.position, graceCollider.position);
         if (dDoor < 2.2) {
           showToast('You made it home with all three rats! You win! 🎉', 4000);
         } else if (!interacted) {
-          showToast("Go to Grace's House door to finish!", 2000);
+          showToast("All rats found! Go to Grace's House door to finish!", 2500);
         }
       }
-      homeMarker.isVisible = true;
+      if (homeMarker) homeMarker.isVisible = true;
     }
   });
 
