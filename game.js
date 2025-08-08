@@ -351,19 +351,23 @@
   const shoeMat = new BABYLON.StandardMaterial('shoeMat', scene); shoeMat.diffuseColor = new BABYLON.Color3(0.95, 0.95, 0.95);
   const soleMat = new BABYLON.StandardMaterial('soleMat', scene); soleMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
 
-  // Shirt body (simple cylinder around torso)
-  const shirt = BABYLON.MeshBuilder.CreateCylinder('Shirt', { height: 0.8, diameter: 0.95 }, scene);
+  // Shirt body (scaled up for clear visibility)
+  const shirt = BABYLON.MeshBuilder.CreateCylinder('Shirt', { height: 0.9, diameter: 1.1 }, scene);
   shirt.parent = graceVisual; shirt.position = new BABYLON.Vector3(0, 1.55, 0); shirt.material = shirtMat;
+  // Short sleeves attached to arms
+  const leftSleeve = BABYLON.MeshBuilder.CreateCylinder('LeftSleeve', { height: 0.25, diameter: 0.32 }, scene);
+  leftSleeve.parent = leftArm; leftSleeve.position = new BABYLON.Vector3(0, -0.2, 0); leftSleeve.material = shirtMat;
+  const rightSleeve = leftSleeve.clone('RightSleeve'); rightSleeve.parent = rightArm; rightSleeve.position = new BABYLON.Vector3(0, -0.2, 0);
 
-  // Shorts (box around hips)
-  const shorts = BABYLON.MeshBuilder.CreateBox('Shorts', { width: 0.95, height: 0.45, depth: 0.7 }, scene);
+  // Shorts (larger to stand out)
+  const shorts = BABYLON.MeshBuilder.CreateBox('Shorts', { width: 1.05, height: 0.5, depth: 0.85 }, scene);
   shorts.parent = graceVisual; shorts.position = new BABYLON.Vector3(0, 0.95, 0); shorts.material = shortsMat;
 
   function createShoe(parent, name) {
-    const shoe = BABYLON.MeshBuilder.CreateBox(name + '_Body', { width: 0.25, height: 0.12, depth: 0.45 }, scene);
-    shoe.parent = parent; shoe.position = new BABYLON.Vector3(0, -1.02, 0.1); shoe.material = shoeMat;
-    const sole = BABYLON.MeshBuilder.CreateBox(name + '_Sole', { width: 0.26, height: 0.04, depth: 0.47 }, scene);
-    sole.parent = parent; sole.position = new BABYLON.Vector3(0, -1.09, 0.1); sole.material = soleMat;
+    const shoe = BABYLON.MeshBuilder.CreateBox(name + '_Body', { width: 0.28, height: 0.12, depth: 0.5 }, scene);
+    shoe.parent = parent; shoe.position = new BABYLON.Vector3(0, -1.02, 0.12); shoe.material = shoeMat;
+    const sole = BABYLON.MeshBuilder.CreateBox(name + '_Sole', { width: 0.3, height: 0.04, depth: 0.52 }, scene);
+    sole.parent = parent; sole.position = new BABYLON.Vector3(0, -1.09, 0.12); sole.material = soleMat;
   }
   createShoe(leftLeg, 'LeftShoe');
   createShoe(rightLeg, 'RightShoe');
@@ -389,6 +393,15 @@
     if (betaTarget > camera.upperBetaLimit) betaTarget = camera.upperBetaLimit;
   });
   canvas.addEventListener('mouseleave', () => { lastMouseX = null; });
+  // Pointer lock to allow continuous rotation at screen edges
+  canvas.addEventListener('click', () => {
+    if (document.pointerLockElement !== canvas) {
+      canvas.requestPointerLock?.();
+    }
+  });
+  document.addEventListener('pointerlockchange', () => {
+    if (document.pointerLockElement !== canvas) { lastMouseX = null; }
+  });
 
   // Player movement
   const input = { f: false, b: false, l: false, r: false };
