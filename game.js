@@ -145,11 +145,14 @@
     const h = ext.y * 2;
 
     // Door (front, +Z side)
-    const door = BABYLON.MeshBuilder.CreatePlane('door_' + building.name, { width: Math.min(1.2, ext.x * 1.6), height: 1.8 }, scene);
-    door.position = new BABYLON.Vector3(basePos.x, 0.9, basePos.z + ext.z + 0.02);
+    const door = BABYLON.MeshBuilder.CreatePlane('door_' + building.name, { width: Math.min(1.2, ext.x * 1.6), height: 1.8, sideOrientation: BABYLON.Mesh.DOUBLESIDE }, scene);
+    door.position = new BABYLON.Vector3(basePos.x, 0.9, basePos.z + ext.z + 0.03);
     const doorMat = new BABYLON.StandardMaterial('doorMat_' + building.name, scene);
     doorMat.diffuseColor = new BABYLON.Color3(0.4, 0.2, 0.1);
+    doorMat.backFaceCulling = false;
     door.material = doorMat;
+    building.metadata = building.metadata || {};
+    building.metadata.door = door;
 
     // Windows (left/right and back)
     function makeWindow(px, py, pz, ry) {
@@ -303,6 +306,17 @@
   const home = homeCandidates.length ? homeCandidates[Math.floor(Math.random() * homeCandidates.length)] : buildings[0];
   const homeMarker = createFloatingBillboard('HOME', home, 'Home');
   homeMarker.isVisible = false;
+
+  // Add "Grace's House" sign above home door if available
+  if (home && home.metadata && home.metadata.door) {
+    const d = home.metadata.door.position;
+    const sign = BABYLON.MeshBuilder.CreatePlane('homeDoorSign', { width: 3, height: 0.8, sideOrientation: BABYLON.Mesh.DOUBLESIDE }, scene);
+    sign.position = new BABYLON.Vector3(d.x, d.y + 0.95, d.z + 0.02);
+    const sm = new BABYLON.StandardMaterial('homeDoorSignMat', scene);
+    const sTex = new BABYLON.DynamicTexture('homeDoorSignTex', { width: 512, height: 128 }, scene, false);
+    sTex.drawText("Grace's House", 20, 90, 'bold 64px sans-serif', 'white', 'rgba(0,0,0,0.6)', true);
+    sm.diffuseTexture = sTex; sm.backFaceCulling = false; sign.material = sm;
+  }
 
   // Make Grace's house colorful and covered with big flowers so it's obvious
   (function decorateHome(building) {
@@ -731,18 +745,29 @@
     if (!['e','E','Space',' '].includes(e.key) && e.code !== 'Space') return;
     // If moving and Space is held, treat as sprint only
     if ((e.code === 'Space' || e.key === ' ') && (input.f || input.b || input.l || input.r)) return;
+
+    // Interact with nearby rat
+    let interacted = false;
     for (const r of ratEntities) {
       if (r.root.metadata.found) continue;
       const d = BABYLON.Vector3.Distance(r.root.position, graceCollider.position);
       if (d < interactDistance) {
         attachRatToGrace(r);
         showToast(`You found ${r.name}! ${r.hint}`, 2500);
+        interacted = true;
       }
     }
 
-    if (!allFound && ratEntities.every(r => r.root.metadata.found)) {
-      allFound = true;
-      showToast('All rats found! Return home to win!', 3000);
+    // If all rats found, require interacting with the home door to win
+    if (ratEntities.every(r => r.root.metadata.found)) {
+      if (home && home.metadata && home.metadata.door) {
+        const dDoor = BABYLON.Vector3.Distance(home.metadata.door.position, graceCollider.position);
+        if (dDoor < 2.2) {
+          showToast('You made it home with all three rats! You win! 🎉', 4000);
+        } else if (!interacted) {
+          showToast("Go to Grace's House door to finish!", 2000);
+        }
+      }
       homeMarker.isVisible = true;
     }
   });
