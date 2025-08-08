@@ -480,7 +480,7 @@
 
   // Head + Hair
   const head = BABYLON.MeshBuilder.CreateSphere('GraceHead', { diameter: 0.6 }, scene);
-  head.parent = graceVisual; head.position = new BABYLON.Vector3(0, 2.2, 0);
+  head.parent = graceVisual; head.position = new BABYLON.Vector3(0, 2.21, 0);
   const headMat = new BABYLON.StandardMaterial('headMat', scene);
   headMat.diffuseColor = new BABYLON.Color3(0.93, 0.80, 0.70); // light tan face
   headMat.specularColor = new BABYLON.Color3(0, 0, 0);
