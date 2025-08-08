@@ -90,6 +90,21 @@
     return road;
   }
 
+  // Perimeter fence to prevent falling off
+  function createFence() {
+    const halfW = 100, halfH = 100, thickness = 0.5, height = 3;
+    const fenceMat = new BABYLON.StandardMaterial('fenceMat', scene);
+    fenceMat.diffuseColor = new BABYLON.Color3(0.7, 0.7, 0.7);
+    const north = BABYLON.MeshBuilder.CreateBox('fenceN', { width: halfW * 2, height, depth: thickness }, scene);
+    north.position = new BABYLON.Vector3(0, height / 2, -halfH + thickness / 2);
+    const south = north.clone('fenceS'); south.position = new BABYLON.Vector3(0, height / 2, halfH - thickness / 2);
+    const west = BABYLON.MeshBuilder.CreateBox('fenceW', { width: thickness, height, depth: halfH * 2 }, scene);
+    west.position = new BABYLON.Vector3(-halfW + thickness / 2, height / 2, 0);
+    const east = west.clone('fenceE'); east.position = new BABYLON.Vector3(halfW - thickness / 2, height / 2, 0);
+    ;[north, south, west, east].forEach(w => { w.material = fenceMat; w.checkCollisions = true; });
+  }
+  createFence();
+
   // Simple grid roads
   const roadSegments = [];
   for (let i = -60; i <= 60; i += 30) {
@@ -166,13 +181,13 @@
 
     function createTree(pos) {
       const trunk = BABYLON.MeshBuilder.CreateCylinder('trunk_' + Math.random(), { height: 1.6, diameter: 0.18 }, scene);
-      trunk.position = pos.add(new BABYLON.Vector3(0, 0.8, 0));
+      trunk.position = new BABYLON.Vector3(pos.x, 0.8, pos.z);
       const trunkMat = new BABYLON.StandardMaterial('trunkMat_' + Math.random(), scene);
       trunkMat.diffuseColor = new BABYLON.Color3(0.4, 0.25, 0.12);
       trunk.material = trunkMat;
 
       const crown = BABYLON.MeshBuilder.CreateSphere('crown_' + Math.random(), { diameter: 1.2 }, scene);
-      crown.position = pos.add(new BABYLON.Vector3(0, 1.6, 0));
+      crown.position = new BABYLON.Vector3(pos.x, 1.6, pos.z);
       const crownMat = new BABYLON.StandardMaterial('crownMat_' + Math.random(), scene);
       crownMat.diffuseColor = new BABYLON.Color3(0.2, 0.6, 0.2);
       crown.material = crownMat;
@@ -180,7 +195,7 @@
 
     function createBush(pos) {
       const bush = BABYLON.MeshBuilder.CreateSphere('bush_' + Math.random(), { diameter: 0.6 }, scene);
-      bush.position = pos.add(new BABYLON.Vector3(0, 0.3, 0));
+      bush.position = new BABYLON.Vector3(pos.x, 0.3, pos.z);
       const bushMat = new BABYLON.StandardMaterial('bushMat_' + Math.random(), scene);
       bushMat.diffuseColor = new BABYLON.Color3(0.25, 0.7, 0.25);
       bush.material = bushMat;
@@ -193,7 +208,7 @@
       new BABYLON.Vector3(-ext.x - 1.5, 0, -ext.z - 0.5),
     ];
     offsets.forEach((o, i) => {
-      const world = basePos.add(o);
+      const world = new BABYLON.Vector3(basePos.x + o.x, 0, basePos.z + o.z);
       if (i % 2 === 0) createTree(world); else createBush(world);
     });
   }
@@ -281,34 +296,41 @@
   const homeMarker = createFloatingBillboard('HOME', home, 'Home');
   homeMarker.isVisible = false;
 
-  // Player (Grace)
-  const grace = BABYLON.MeshBuilder.CreateCapsule('GraceBody', { height: 2.0, radius: 0.45 }, scene);
-  grace.position = new BABYLON.Vector3(0, 1.1, 0);
-  grace.checkCollisions = true;
-  grace.ellipsoid = new BABYLON.Vector3(0.45, 1.0, 0.45);
-  grace.ellipsoidOffset = new BABYLON.Vector3(0, 1.0, 0);
+  // Player (Grace) – use a hidden collider and a visual rig to ensure torso height
+  const graceCollider = BABYLON.MeshBuilder.CreateCapsule('GraceCollider', { height: 2.0, radius: 0.45 }, scene);
+  graceCollider.position = new BABYLON.Vector3(0, 1.1, 0);
+  graceCollider.checkCollisions = true;
+  graceCollider.ellipsoid = new BABYLON.Vector3(0.45, 1.0, 0.45);
+  graceCollider.ellipsoidOffset = new BABYLON.Vector3(0, 1.0, 0);
+  graceCollider.isVisible = false;
+
+  const graceVisual = new BABYLON.TransformNode('GraceVisual', scene);
+  graceVisual.parent = graceCollider;
+
+  // Torso
+  const torso = BABYLON.MeshBuilder.CreateCapsule('GraceTorso', { height: 1.4, radius: 0.4 }, scene);
+  torso.parent = graceVisual;
+  torso.position = new BABYLON.Vector3(0, 1.2, 0);
   const graceMat = new BABYLON.StandardMaterial('graceMat', scene);
   graceMat.diffuseColor = new BABYLON.Color3(0.9, 0.75, 0.6);
-  grace.material = graceMat;
+  torso.material = graceMat;
 
-  // Head + Hair adjusted so torso is above ground
+  // Head + Hair
   const head = BABYLON.MeshBuilder.CreateSphere('GraceHead', { diameter: 0.6 }, scene);
-  head.position = new BABYLON.Vector3(0, 2.1, 0);
-  head.parent = grace;
+  head.parent = graceVisual; head.position = new BABYLON.Vector3(0, 2.1, 0);
   const hair = BABYLON.MeshBuilder.CreateSphere('GraceHair', { diameter: 0.9 }, scene);
-  hair.position = new BABYLON.Vector3(0, 2.35, 0);
-  hair.parent = grace;
+  hair.parent = graceVisual; hair.position = new BABYLON.Vector3(0, 2.35, 0);
   const hairMat = new BABYLON.StandardMaterial('hairMat', scene);
   hairMat.diffuseColor = new BABYLON.Color3(0.36, 0.22, 0.12);
   hair.material = hairMat;
 
-  // Limbs (simple cylinders) + walk animation pivots
+  // Limbs
   const limbMat = new BABYLON.StandardMaterial('limbMat', scene);
   limbMat.diffuseColor = new BABYLON.Color3(0.85, 0.7, 0.6);
   function createLimb(name, height, diameter) {
     const limb = BABYLON.MeshBuilder.CreateCylinder(name, { height, diameter }, scene);
-    limb.parent = grace;
-    limb.setPivotPoint(new BABYLON.Vector3(0, height / 2, 0)); // rotate from top
+    limb.parent = graceVisual;
+    limb.setPivotPoint(new BABYLON.Vector3(0, height / 2, 0));
     limb.material = limbMat;
     return limb;
   }
@@ -317,8 +339,8 @@
   const leftArm = createLimb('LeftArm', 0.9, 0.14); leftArm.position = new BABYLON.Vector3(-0.55, 1.5, 0.1);
   const rightArm = createLimb('RightArm', 0.9, 0.14); rightArm.position = new BABYLON.Vector3(0.55, 1.5, 0.1);
 
-  // Camera follows Grace
-  camera.lockedTarget = grace;
+  // Camera targets the collider
+  camera.setTarget(graceCollider);
 
   // Inverted mouse controls for yaw/tilt while keeping camera behind Grace
   let graceYaw = 0;
@@ -351,10 +373,9 @@
 
   const moveSpeed = 0.12;
   const step = new BABYLON.Vector3();
-  let walkPhase = 0; // for animating limbs
+  let walkPhase = 0;
   scene.onBeforeRenderObservable.add(() => {
-    // Determine forward direction relative to camera's Y-only orientation
-    const dt = engine.getDeltaTime() / 16.67; // scale to ~60fps baseline
+    const dt = engine.getDeltaTime() / 16.67;
     const forward = new BABYLON.Vector3(Math.sin(graceYaw), 0, Math.cos(graceYaw));
     const right = new BABYLON.Vector3(Math.cos(graceYaw), 0, -Math.sin(graceYaw));
 
@@ -367,16 +388,15 @@
     const isMoving = step.lengthSquared() > 0.0001;
     if (isMoving) {
       step.normalize().scaleInPlace(moveSpeed * dt);
-      const targetY = Math.atan2(step.x, step.z);
-      grace.rotation.y = targetY; // face movement direction
+      graceVisual.rotation.y = Math.atan2(step.x, step.z);
     }
 
     const moveVector = new BABYLON.Vector3(step.x, scene.gravity.y * 0.5, step.z);
-    grace.moveWithCollisions(moveVector);
+    graceCollider.moveWithCollisions(moveVector);
 
     // Limb walk animation
     const targetPhaseSpeed = (isMoving ? 0.35 : 0);
-    walkPhase += targetPhaseSpeed * dt * 60; // scale for frame rate
+    walkPhase += targetPhaseSpeed * dt * 60;
     const swing = isMoving ? Math.sin(walkPhase) * 0.6 : 0;
     const swingOpp = -swing;
     leftLeg.rotation.x = swing;
@@ -504,7 +524,7 @@
   function updateRatLabels() {
     for (const r of ratEntities) {
       if (r.root.metadata.found) { r.label.isVisible = false; continue; }
-      const d = BABYLON.Vector3.Distance(r.root.position, grace.position);
+      const d = BABYLON.Vector3.Distance(r.root.position, graceCollider.position);
       r.label.isVisible = d < revealDistance;
     }
   }
@@ -514,7 +534,7 @@
   let allFound = false;
 
   function attachRatToGrace(rat) {
-    rat.root.setParent(grace);
+    rat.root.setParent(graceVisual);
     rat.root.position = rat.attach.clone();
     rat.root.rotation = new BABYLON.Vector3(0, 0, 0);
     rat.root.metadata.found = true;
@@ -525,7 +545,7 @@
     if (e.key !== 'e' && e.key !== 'E') return;
     for (const r of ratEntities) {
       if (r.root.metadata.found) continue;
-      const d = BABYLON.Vector3.Distance(r.root.position, grace.position);
+      const d = BABYLON.Vector3.Distance(r.root.position, graceCollider.position);
       if (d < interactDistance) {
         attachRatToGrace(r);
         showToast(`You found ${r.name}! ${r.hint}`, 2500);
@@ -544,7 +564,7 @@
   let gameWon = false;
   scene.onBeforeRenderObservable.add(() => {
     if (!allFound || gameWon) return;
-    const d = BABYLON.Vector3.Distance(grace.position, home.position);
+    const d = BABYLON.Vector3.Distance(graceCollider.position, home.position);
     if (d < winDistance) {
       gameWon = true;
       showToast('You made it home with all three rats! You win! 🎉', 5000);
