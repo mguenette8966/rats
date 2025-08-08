@@ -480,7 +480,7 @@
 
   // Head + Hair
   const head = BABYLON.MeshBuilder.CreateSphere('GraceHead', { diameter: 0.6 }, scene);
-  head.parent = graceVisual; head.position = new BABYLON.Vector3(0, 2.1, 0);
+  head.parent = graceVisual; head.position = new BABYLON.Vector3(0, 2.2, 0);
   const headMat = new BABYLON.StandardMaterial('headMat', scene);
   headMat.diffuseColor = new BABYLON.Color3(0.93, 0.80, 0.70); // light tan face
   headMat.specularColor = new BABYLON.Color3(0, 0, 0);
@@ -510,7 +510,7 @@
   hairBack.parent = graceVisual; hairBack.position = new BABYLON.Vector3(0, 1.9, -0.32); hairBack.material = hairMat;
 
   // Rat attachment anchors (top of head and shoulders)
-  const headAnchor = new BABYLON.TransformNode('HeadAnchor', scene); headAnchor.parent = graceVisual; headAnchor.position = new BABYLON.Vector3(0, 2.65, 0);
+  const headAnchor = new BABYLON.TransformNode('HeadAnchor', scene); headAnchor.parent = graceVisual; headAnchor.position = new BABYLON.Vector3(0, 2.75, 0);
   const leftShoulderAnchor = new BABYLON.TransformNode('LeftShoulderAnchor', scene); leftShoulderAnchor.parent = graceVisual; leftShoulderAnchor.position = new BABYLON.Vector3(-0.5, 1.85, 0.18);
   const rightShoulderAnchor = new BABYLON.TransformNode('RightShoulderAnchor', scene); rightShoulderAnchor.parent = graceVisual; rightShoulderAnchor.position = new BABYLON.Vector3(0.5, 1.85, 0.18);
 
