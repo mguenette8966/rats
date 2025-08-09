@@ -1058,18 +1058,17 @@
       const nearL = BABYLON.Vector3.Distance(lincoln.collider.position, graceCollider.position) < 3.5;
       const nearD = BABYLON.Vector3.Distance(dakota.collider.position, graceCollider.position) < 3.5;
       if (nearL && nearD) {
-        const forward = new BABYLON.Vector3(Math.sin(graceYaw), 0, Math.cos(graceYaw));
         const right = new BABYLON.Vector3(Math.cos(graceYaw), 0, -Math.sin(graceYaw));
-        // apply slight lateral offsets
-        lincoln.collider.position.addInPlace(right.scale(-0.4));
-        dakota.collider.position.addInPlace(right.scale(0.4));
+        // very subtle lateral offsets only
+        lincoln.collider.position.addInPlace(right.scale(-0.15));
+        dakota.collider.position.addInPlace(right.scale(0.15));
       }
-      // basic separation to prevent overlap
+      // minimal separation only if overlapping noticeably
       const sep = lincoln.collider.position.subtract(dakota.collider.position);
       sep.y = 0;
       const d = sep.length();
-      if (d > 0 && d < 0.8) {
-        sep.normalize().scaleInPlace((0.8 - d) * 0.5);
+      if (d > 0 && d < 0.35) {
+        sep.normalize().scaleInPlace((0.35 - d) * 0.15);
         lincoln.collider.position.addInPlace(sep);
         dakota.collider.position.subtractInPlace(sep);
       }
