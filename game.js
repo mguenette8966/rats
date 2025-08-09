@@ -1043,6 +1043,10 @@
         lincoln.visual.rotation.y = Math.atan2(dir.x, dir.z);
         isMovingL = true;
       }
+      else {
+        // near Grace: do not move
+        isMovingL = false;
+      }
       // Walk anim
       const targetPhaseSpeed = (isMovingL ? 0.12 : 0);
       lincoln.state.walkPhase += targetPhaseSpeed * dtFrames * 60;
@@ -1053,26 +1057,7 @@
       lincoln.limbs.leftArm.rotation.x = swingOpp * 0.7;
       lincoln.limbs.rightArm.rotation.x = swing * 0.7;
     }
-    if (!dakota.state.down) {
-      // side-by-side offset when both near Grace
-      const nearL = BABYLON.Vector3.Distance(lincoln.collider.position, graceCollider.position) < 3.5;
-      const nearD = BABYLON.Vector3.Distance(dakota.collider.position, graceCollider.position) < 3.5;
-      if (nearL && nearD) {
-        const right = new BABYLON.Vector3(Math.cos(graceYaw), 0, -Math.sin(graceYaw));
-        // very subtle lateral offsets only
-        lincoln.collider.position.addInPlace(right.scale(-0.15));
-        dakota.collider.position.addInPlace(right.scale(0.15));
-      }
-      // minimal separation only if overlapping noticeably
-      const sep = lincoln.collider.position.subtract(dakota.collider.position);
-      sep.y = 0;
-      const d = sep.length();
-      if (d > 0 && d < 0.35) {
-        sep.normalize().scaleInPlace((0.35 - d) * 0.15);
-        lincoln.collider.position.addInPlace(sep);
-        dakota.collider.position.subtractInPlace(sep);
-      }
-    }
+    
   });
 
   // Dakota AI and animation
@@ -1142,6 +1127,9 @@
         dakota.collider.position.y = 0.55;
         dakota.visual.rotation.y = Math.atan2(dir.x, dir.z);
         isMovingD = true;
+      }
+      else {
+        isMovingD = false;
       }
       // Walk anim
       const targetPhaseSpeed = (isMovingD ? 0.12 : 0);
