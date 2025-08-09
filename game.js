@@ -633,9 +633,9 @@
 
   function createShoe(parent, name) {
     const shoe = BABYLON.MeshBuilder.CreateBox(name + '_Body', { width: 0.28, height: 0.12, depth: 0.5 }, scene);
-    shoe.parent = parent; shoe.position = new BABYLON.Vector3(0, -0.92, 0.12); shoe.material = shoeMat;
+    shoe.parent = parent; shoe.position = new BABYLON.Vector3(0, -0.85, 0.12); shoe.material = shoeMat;
     const sole = BABYLON.MeshBuilder.CreateBox(name + '_Sole', { width: 0.3, height: 0.04, depth: 0.52 }, scene);
-    sole.parent = parent; sole.position = new BABYLON.Vector3(0, -1.00, 0.12); sole.material = soleMat;
+    sole.parent = parent; sole.position = new BABYLON.Vector3(0, -0.92, 0.12); sole.material = soleMat;
   }
   createShoe(leftLeg, 'LeftShoe');
   createShoe(rightLeg, 'RightShoe');
@@ -878,7 +878,10 @@
   }
 
   // Place rats and Lincoln
-  ratEntities.forEach(r => { r.root.position = randomSpawn([]); });
+  ratEntities.forEach(r => {
+    const rp = randomSpawn([]);
+    r.root.position = new BABYLON.Vector3(rp.x, 0.15, rp.z);
+  });
   (function(){
     const p = randomSpawn([graceCollider.position]);
     p.y = 0.55; // keep capsule centered so feet are on ground
