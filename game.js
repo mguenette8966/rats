@@ -142,7 +142,7 @@
     rect.thickness = 1;
     rect.cornerRadius = 6;
     rect.height = '24px';
-    rect.width = '140px';
+    rect.width = '180px';
     rect.isVisible = false;
 
     const text = new BABYLON.GUI.TextBlock();
@@ -154,6 +154,8 @@
     ui.addControl(rect);
     rect.linkWithMesh(mesh);
     rect.linkOffsetY = -30; // above mesh
+    rect.metadata = rect.metadata || {};
+    rect.metadata.textControl = text;
 
     return rect;
   }
@@ -631,9 +633,9 @@
 
   function createShoe(parent, name) {
     const shoe = BABYLON.MeshBuilder.CreateBox(name + '_Body', { width: 0.28, height: 0.12, depth: 0.5 }, scene);
-    shoe.parent = parent; shoe.position = new BABYLON.Vector3(0, -1.02, 0.12); shoe.material = shoeMat;
+    shoe.parent = parent; shoe.position = new BABYLON.Vector3(0, -0.92, 0.12); shoe.material = shoeMat;
     const sole = BABYLON.MeshBuilder.CreateBox(name + '_Sole', { width: 0.3, height: 0.04, depth: 0.52 }, scene);
-    sole.parent = parent; sole.position = new BABYLON.Vector3(0, -1.09, 0.12); sole.material = soleMat;
+    sole.parent = parent; sole.position = new BABYLON.Vector3(0, -1.00, 0.12); sole.material = soleMat;
   }
   createShoe(leftLeg, 'LeftShoe');
   createShoe(rightLeg, 'RightShoe');
@@ -848,6 +850,7 @@
   // Lincoln spawn
   const lincoln = createLincoln();
   const lincolnLabel = createLabelForMesh(lincoln.collider, 'Lincoln');
+  lincolnLabel.width = '180px';
 
   // Candidate spawn points near buildings but accessible
   const spawnPoints = [];
@@ -965,6 +968,7 @@
   // Proximity & interaction
   const revealDistance = 4.0;
   const interactDistance = 2.0;
+  const radarDistance = 24.0; // about twice a house length
 
   function updateRatLabels() {
     for (const r of ratEntities) {
@@ -975,6 +979,16 @@
     // Lincoln label
     const dL = BABYLON.Vector3.Distance(lincoln.collider.position, graceCollider.position);
     lincolnLabel.isVisible = dL < revealDistance;
+    if (lincolnLabel.isVisible) {
+      let nearUnfound = false;
+      for (const r of ratEntities) {
+        if (r.root.metadata.found) continue;
+        const dr = BABYLON.Vector3.Distance(r.root.position, graceCollider.position);
+        if (dr < radarDistance) { nearUnfound = true; break; }
+      }
+      const txt = lincolnLabel.metadata && lincolnLabel.metadata.textControl;
+      if (txt) txt.text = nearUnfound ? 'I smell a rat!' : 'Lincoln';
+    }
   }
 
   scene.onBeforeRenderObservable.add(updateRatLabels);
