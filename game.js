@@ -1275,36 +1275,31 @@
       }
     }
 
-    // Interact with Lincoln
+    // Prioritized interactions with Lincoln and Dakota
     if (!interacted) {
       const dL = BABYLON.Vector3.Distance(lincoln.collider.position, graceCollider.position);
-      if (dL < interactDistance) {
-        if (!lincoln.state.down) {
-          // Simple kick animation on Grace's right leg
-          const prev = rightLeg.rotation.x;
-          rightLeg.rotation.x = prev - 1.1;
-          setTimeout(() => { rightLeg.rotation.x = prev; }, 250);
-          lincolnKnockDown();
-        } else {
-          lincolnStandUp();
-        }
-        interacted = true;
-      }
-    }
-
-    // Interact with Dakota
-    if (!interacted) {
       const dD = BABYLON.Vector3.Distance(dakota.collider.position, graceCollider.position);
-      if (dD < interactDistance) {
-        if (!dakota.state.down) {
-          // Simple kick animation on Grace's left leg
-          const prev = leftLeg.rotation.x;
-          leftLeg.rotation.x = prev - 1.1;
-          setTimeout(() => { leftLeg.rotation.x = prev; }, 250);
-          dakotaKnockDown();
+      const inL = dL < interactDistance;
+      const inD = dD < interactDistance;
+
+      function kickL(){ const prev = rightLeg.rotation.x; rightLeg.rotation.x = prev - 1.1; setTimeout(() => { rightLeg.rotation.x = prev; }, 250); lincolnKnockDown(); }
+      function kickD(){ const prev = leftLeg.rotation.x; leftLeg.rotation.x = prev - 1.1; setTimeout(() => { leftLeg.rotation.x = prev; }, 250); dakotaKnockDown(); }
+
+      if (inL && inD) {
+        if (lincoln.state.down && !dakota.state.down) { kickD(); interacted = true; }
+        else if (!lincoln.state.down && dakota.state.down) { kickL(); interacted = true; }
+        else if (!lincoln.state.down && !dakota.state.down) {
+          if (dL <= dD) { kickL(); } else { kickD(); }
+          interacted = true;
         } else {
-          dakotaStandUp();
+          if (dL <= dD) { lincolnStandUp(); } else { dakotaStandUp(); }
+          interacted = true;
         }
+      } else if (inL) {
+        if (!lincoln.state.down) { kickL(); } else { lincolnStandUp(); }
+        interacted = true;
+      } else if (inD) {
+        if (!dakota.state.down) { kickD(); } else { dakotaStandUp(); }
         interacted = true;
       }
     }
