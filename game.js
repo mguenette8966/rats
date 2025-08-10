@@ -36,9 +36,9 @@
   dirLight.intensity = 0.6;
 
   // GUI Overlay
-  const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('ui');
-  ui.layer.layerMask = 0x0FFFFFFF; // ensure visible
-  ui.rootContainer.zIndex = 3000;
+  const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('UI');
+  ui.layer.layerMask = 0x0FFFFFFF; ui.rootContainer.zIndex = 3000;
+  let currentMode = 'MENU';
 
   function showToast(message, durationMs = 2000) {
     const rect = new BABYLON.GUI.Rectangle();
@@ -196,8 +196,86 @@
     return rect;
   }
 
-  // Build title screen (game starts paused)
-  createTitleScreen();
+  // Build master game select (game starts paused)
+  function createGameSelectScreen() {
+    const overlay = new BABYLON.GUI.Rectangle('gameSelectOverlay');
+    overlay.width = 1; overlay.height = 1; overlay.background = '#1a1a1add'; overlay.thickness = 0; overlay.zIndex = 9000; overlay.isPointerBlocker = true;
+    ui.addControl(overlay);
+
+    const stack = new BABYLON.GUI.StackPanel(); stack.isVertical = true; stack.width = '80%'; stack.height = '100%'; stack.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_CENTER; overlay.addControl(stack);
+
+    const title = new BABYLON.GUI.TextBlock(); title.text = 'Select Your Game'; title.color = 'white'; title.fontSize = 64; title.paddingBottom = '30px'; stack.addControl(title);
+
+    const subtitle = new BABYLON.GUI.TextBlock(); subtitle.text = 'Choose an adventure to begin'; subtitle.color = '#ddd'; subtitle.fontSize = 24; subtitle.paddingBottom = '40px'; stack.addControl(subtitle);
+
+    function makeBtn(text, bg){ const b = BABYLON.GUI.Button.CreateSimpleButton('btn_'+text, text); b.width = '340px'; b.height = '80px'; b.color = 'white'; b.background = bg; b.fontSize = 28; b.cornerRadius = 12; b.paddingBottom = '20px'; return b; }
+
+    const btnHNS = makeBtn('Hide and Squeak', '#2b7a2b');
+    btnHNS.onPointerUpObservable.add(() => { currentMode = 'HNS'; ui.removeControl(overlay); createTitleScreen(); });
+    stack.addControl(btnHNS);
+
+    const btnUntitled = makeBtn('Untitled Game', '#1f5f99');
+    btnUntitled.onPointerUpObservable.add(() => { currentMode = 'CAGE'; ui.removeControl(overlay); startCageLevel(); });
+    stack.addControl(btnUntitled);
+  }
+
+  function startCageLevel() {
+    // Hide H&S HUD if present
+    try { if (hud) hud.isVisible = false; } catch(e){}
+    // Place cage far from town
+    const root = new BABYLON.TransformNode('CageRoot', scene);
+    const base = new BABYLON.Vector3(300, 0, 0);
+    root.position = base.clone();
+
+    const levelSize = 50; // quarter of 200
+    const levelHeight = 5;
+    const floorThickness = 0.5;
+    const cageWallHeight = levelHeight*2 + levelHeight; // space above top equal to distance between levels
+
+    const blackMat = new BABYLON.StandardMaterial('cageBlack', scene); blackMat.diffuseColor = new BABYLON.Color3(0,0,0);
+
+    // Bottom floor
+    const floor1 = BABYLON.MeshBuilder.CreateBox('CageFloor1', { width: levelSize, depth: levelSize, height: floorThickness }, scene);
+    floor1.position = base.add(new BABYLON.Vector3(0, floorThickness/2, 0)); floor1.material = blackMat; floor1.checkCollisions = true; floor1.parent = root;
+
+    // Top floor split with opening in middle (gapWidth)
+    const gapWidth = 10;
+    const half = (levelSize - gapWidth)/2;
+    const y2 = levelHeight + floorThickness/2;
+    const floor2A = BABYLON.MeshBuilder.CreateBox('CageFloor2A', { width: half, depth: levelSize, height: floorThickness }, scene);
+    floor2A.position = base.add(new BABYLON.Vector3(-(gapWidth/2 + half/2), y2, 0)); floor2A.material = blackMat; floor2A.checkCollisions = true; floor2A.parent = root;
+    const floor2B = BABYLON.MeshBuilder.CreateBox('CageFloor2B', { width: half, depth: levelSize, height: floorThickness }, scene);
+    floor2B.position = base.add(new BABYLON.Vector3( (gapWidth/2 + half/2), y2, 0)); floor2B.material = blackMat; floor2B.checkCollisions = true; floor2B.parent = root;
+
+    // Ramp from floor1 up to floor2A edge
+    const rampLen = levelHeight * 2.2; const rampHeight = 0.5; const rampWidth = 6;
+    const ramp = BABYLON.MeshBuilder.CreateBox('CageRamp', { width: rampWidth, depth: rampLen, height: rampHeight }, scene);
+    ramp.material = blackMat; ramp.checkCollisions = true; ramp.parent = root;
+    ramp.rotation.x = -Math.atan2(levelHeight, rampLen);
+    // Position ramp so bottom rests on floor1 and top meets floor2A edge
+    const rampCenterY = floorThickness/2 + (levelHeight/2);
+    ramp.position = base.add(new BABYLON.Vector3(-levelSize*0.2, rampCenterY, -levelSize*0.15));
+    // Align ramp end to floor2A: shift forward towards center
+    ramp.position.z += rampLen*0.25;
+
+    // Cage bars around perimeter
+    const barMat = new BABYLON.StandardMaterial('barMat', scene); barMat.diffuseColor = new BABYLON.Color3(0.15,0.15,0.15);
+    const barSpacing = 2.5; const barRadius = 0.1; const barH = cageWallHeight;
+    function addBar(x,z){ const c = BABYLON.MeshBuilder.CreateCylinder('CageBar',{height:barH, diameter: barRadius*2}, scene); c.material = barMat; c.position = base.add(new BABYLON.Vector3(x, barH/2, z)); c.checkCollisions = true; c.parent = root; }
+    for (let x = -levelSize/2; x <= levelSize/2; x += barSpacing) { addBar(x, -levelSize/2); addBar(x, levelSize/2); }
+    for (let z = -levelSize/2; z <= levelSize/2; z += barSpacing) { addBar(-levelSize/2, z); addBar(levelSize/2, z); }
+    // Roof bars
+    const roofY = cageWallHeight;
+    for (let x = -levelSize/2; x <= levelSize/2; x += barSpacing) {
+      const rb = BABYLON.MeshBuilder.CreateCylinder('CageRoofBar', { height: levelSize, diameter: barRadius*2 }, scene);
+      rb.rotation.z = Math.PI/2; rb.material = barMat; rb.position = base.add(new BABYLON.Vector3(x, roofY, 0)); rb.checkCollisions = true; rb.parent = root;
+    }
+
+    // Move Grace into cage and start
+    graceCollider.position = base.add(new BABYLON.Vector3(0, 1.1, levelSize*0.2));
+    camera.setTarget(graceCollider);
+    gameStarted = true;
+  }
 
   // Ground & Roads
   const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 200, height: 200, subdivisions: 2 }, scene);
@@ -1219,6 +1297,7 @@
   const radarDistance = 24.0; // about twice a house length
 
   function updateRatLabels() {
+    if (currentMode !== 'HNS') { return; }
     for (const r of ratEntities) {
       if (r.root.metadata.found) { r.label.isVisible = false; continue; }
       const d = BABYLON.Vector3.Distance(r.root.position, graceCollider.position);
@@ -1310,6 +1389,7 @@
   window.addEventListener('keydown', (e) => {
     if (!['e','E','Space',' '].includes(e.key) && e.code !== 'Space') return;
     if (!gameStarted) return;
+    if (currentMode !== 'HNS') return; // Only H&S has interactions for now
     // If moving and Space is held, treat as sprint only
     if ((e.code === 'Space' || e.key === ' ') && (input.f || input.b || input.l || input.r)) return;
 
@@ -1397,15 +1477,23 @@
     }
   });
 
-  // Win condition detection
+  // Win condition detection (H&S only)
   const winDistance = 3.0;
   let gameWon = false;
   scene.onBeforeRenderObservable.add(() => {
+    if (currentMode !== 'HNS') return;
     if (!allFound || gameWon) return;
     const d = BABYLON.Vector3.Distance(graceCollider.position, home.position);
     if (d < winDistance) {
       gameWon = true;
-      showToast('You made it home with all three rats! You win! 🎉', 5000);
+      showToast('You made it home with all three rats! You win! 🎉', 2000);
+      setTimeout(() => {
+        gameStarted = false;
+        // Reset simple flags/visibility
+        try { if (hud) hud.isVisible = false; } catch(e){}
+        currentMode = 'MENU';
+        createGameSelectScreen();
+      }, 2200);
     }
   });
 
