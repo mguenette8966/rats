@@ -102,15 +102,36 @@
     // Audio setup helpers
     let audioCtx = null;
     function ensureAudio() {
-      if (audioCtx) return audioCtx;
-      const Ctx = window.AudioContext || window.webkitAudioContext;
-      if (Ctx) {
-        audioCtx = new Ctx();
+      if (!audioCtx) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (Ctx) audioCtx = new Ctx();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume?.();
       }
       return audioCtx;
     }
     // Expose to outer scope for footsteps
-    window.__hs_audio = { ensureAudio: ensureAudio };
+    function getFootBuffer() {
+      const ctx = ensureAudio();
+      if (!ctx) return null;
+      if (window.__hs_audio && window.__hs_audio.footBuffer) return window.__hs_audio.footBuffer;
+      const duration = 0.15;
+      const sampleRate = ctx.sampleRate;
+      const length = Math.floor(duration * sampleRate);
+      const buffer = ctx.createBuffer(1, length, sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < length; i++) {
+        // white noise thump with exponential decay
+        const t = i / sampleRate;
+        const env = Math.exp(-t * 40); // fast decay
+        data[i] = (Math.random() * 2 - 1) * env;
+      }
+      if (!window.__hs_audio) window.__hs_audio = {};
+      window.__hs_audio.footBuffer = buffer;
+      return buffer;
+    }
+    window.__hs_audio = { ensureAudio: ensureAudio, getFootBuffer: getFootBuffer };
 
     function showInstructionScreen(onDone) {
       const instr = new BABYLON.GUI.Rectangle('instructionOverlay');
@@ -802,24 +823,28 @@
   let graceWalkSpeedMeasured = moveSpeed;
   // Footstep sync
   let prevSwing = 0;
+  let lastFootTime = 0;
   function playFootstep() {
     const api = window.__hs_audio;
-    if (!api || !api.ensureAudio) return;
+    if (!api || !api.ensureAudio || !api.getFootBuffer) return;
     const ctx = api.ensureAudio();
     if (!ctx) return;
     const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
+    // throttle steps to >= 90ms apart
+    if (now - lastFootTime < 0.09) return;
+    lastFootTime = now;
+    const buf = api.getFootBuffer();
+    if (!buf) return;
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = graceIsRunning ? 280 : 220; filter.Q.value = 0.7;
     const gain = ctx.createGain();
-    osc.type = 'sine';
-    const baseFreq = graceIsRunning ? 160 : 130;
-    const baseVol = graceIsRunning ? 0.12 : 0.08;
-    osc.frequency.setValueAtTime(baseFreq, now);
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(baseVol, now + 0.005);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.10);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.12);
+    const vol = graceIsRunning ? 0.25 : 0.18;
+    gain.gain.setValueAtTime(vol, now);
+    const endTime = now + 0.16;
+    gain.gain.exponentialRampToValueAtTime(0.0001, endTime);
+    src.connect(filter).connect(gain).connect(ctx.destination);
+    src.start(now);
+    src.stop(endTime);
   }
 
   let walkPhase = 0;
