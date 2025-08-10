@@ -99,6 +99,19 @@
     art.zIndex = 10001;
     stack.addControl(art);
 
+    // Audio setup helpers
+    let audioCtx = null;
+    function ensureAudio() {
+      if (audioCtx) return audioCtx;
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) {
+        audioCtx = new Ctx();
+      }
+      return audioCtx;
+    }
+    // Expose to outer scope for footsteps
+    window.__hs_audio = { ensureAudio: ensureAudio };
+
     function showInstructionScreen(onDone) {
       const instr = new BABYLON.GUI.Rectangle('instructionOverlay');
       instr.width = 1; instr.height = 1; instr.background = '#000000ff'; instr.thickness = 0;
@@ -115,6 +128,7 @@
       let timeoutId = setTimeout(() => { ui.removeControl(instr); onDone && onDone(); }, 5000);
       instr.onPointerUpObservable.add(() => {
         if (timeoutId) clearTimeout(timeoutId);
+        ensureAudio();
         ui.removeControl(instr); onDone && onDone();
       });
     }
@@ -129,6 +143,7 @@
     startBtn.paddingTop = '40px';
     startBtn.zIndex = 10001;
     startBtn.onPointerUpObservable.add(() => {
+      ensureAudio();
       ui.removeControl(overlay);
       showInstructionScreen(() => { gameStarted = true; canvas.focus(); });
     });
@@ -742,6 +757,7 @@
   // Pointer lock to allow continuous rotation at screen edges
   canvas.addEventListener('click', () => {
     if (!gameStarted) return;
+    if (window.__hs_audio && window.__hs_audio.ensureAudio) window.__hs_audio.ensureAudio();
     if (document.pointerLockElement !== canvas) {
       canvas.requestPointerLock?.();
     }
@@ -784,6 +800,28 @@
   // Track Grace walk speed to mirror for Lincoln
   let lastGracePos = null;
   let graceWalkSpeedMeasured = moveSpeed;
+  // Footstep sync
+  let prevSwing = 0;
+  function playFootstep() {
+    const api = window.__hs_audio;
+    if (!api || !api.ensureAudio) return;
+    const ctx = api.ensureAudio();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    const baseFreq = graceIsRunning ? 160 : 130;
+    const baseVol = graceIsRunning ? 0.12 : 0.08;
+    osc.frequency.setValueAtTime(baseFreq, now);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(baseVol, now + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.10);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.12);
+  }
+
   let walkPhase = 0;
   scene.onBeforeRenderObservable.add(() => {
     // Normalize dt to 60fps frames (~16.67ms)
@@ -835,6 +873,13 @@
     rightLeg.rotation.x = swingOpp;
     leftArm.rotation.x = swingOpp * 0.7;
     rightArm.rotation.x = swing * 0.7;
+
+    // Footstep triggers on zero-crossings of swing
+    if (isMoving) {
+      if (prevSwing < 0 && swing >= 0) { playFootstep(); }
+      else if (prevSwing > 0 && swing <= 0) { playFootstep(); }
+    }
+    prevSwing = swing;
   });
 
   // Rats
