@@ -22,11 +22,8 @@
   camera.upperRadiusLimit = 20;
   camera.lowerBetaLimit = BABYLON.Angle.FromDegrees(10).radians();
   camera.upperBetaLimit = BABYLON.Angle.FromDegrees(80).radians();
-  camera.attachControl(canvas, true);
-  // Reduce default pointer influence (we manage yaw/tilt ourselves)
-  if (camera.inputs && camera.inputs.attached && camera.inputs.attached.pointers) {
-    try { camera.inputs.attached.pointers.buttons = []; } catch (e) {}
-  }
+  // Attach camera control only after a game starts
+  function attachCameraIfNeeded(){ if (gameStarted && !camera._attachedByCode) { camera.attachControl(canvas, true); camera._attachedByCode = true; } }
   camera.panningSensibility = 0;
 
   const light = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0, 1, 0), scene);
@@ -166,7 +163,7 @@
     startBtn.onPointerUpObservable.add(() => {
       ensureAudio();
       ui.removeControl(overlay);
-      showInstructionScreen(() => { if (currentMode==='HNS') hud.isVisible = true; gameStarted = true; canvas.focus(); });
+      showInstructionScreen(() => { if (currentMode==='HNS') hud.isVisible = true; gameStarted = true; attachCameraIfNeeded(); canvas.focus(); });
     });
     stack.addControl(startBtn);
   }
@@ -276,8 +273,11 @@
     // Move Grace into cage and start
     graceCollider.position = base.add(new BABYLON.Vector3(0, 1.1, levelSize*0.2));
     camera.setTarget(graceCollider);
-    gameStarted = true;
+    gameStarted = true; attachCameraIfNeeded();
   }
+
+  // Show game selection on launch
+  createGameSelectScreen();
 
   // Ground & Roads
   const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 200, height: 200, subdivisions: 2 }, scene);
@@ -1503,7 +1503,5 @@
   // Resize
   window.addEventListener('resize', () => engine.resize());
 
-  engine.runRenderLoop(() => {
-    scene.render();
-  });
+  engine.runRenderLoop(() => { attachCameraIfNeeded(); scene.render(); });
 })();
