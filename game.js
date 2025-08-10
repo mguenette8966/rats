@@ -166,7 +166,7 @@
     startBtn.onPointerUpObservable.add(() => {
       ensureAudio();
       ui.removeControl(overlay);
-      showInstructionScreen(() => { gameStarted = true; canvas.focus(); });
+      showInstructionScreen(() => { if (currentMode==='HNS') hud.isVisible = true; gameStarted = true; canvas.focus(); });
     });
     stack.addControl(startBtn);
   }
@@ -198,8 +198,10 @@
 
   // Build master game select (game starts paused)
   function createGameSelectScreen() {
+    currentMode = 'MENU';
+    gameStarted = false;
     const overlay = new BABYLON.GUI.Rectangle('gameSelectOverlay');
-    overlay.width = 1; overlay.height = 1; overlay.background = '#1a1a1add'; overlay.thickness = 0; overlay.zIndex = 9000; overlay.isPointerBlocker = true;
+    overlay.width = 1; overlay.height = 1; overlay.background = '#1a1a1add'; overlay.thickness = 0; overlay.zIndex = 20000; overlay.isPointerBlocker = true;
     ui.addControl(overlay);
 
     const stack = new BABYLON.GUI.StackPanel(); stack.isVertical = true; stack.width = '80%'; stack.height = '100%'; stack.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_CENTER; overlay.addControl(stack);
@@ -1341,6 +1343,7 @@
   hud.paddingLeft = '10px'; hud.paddingTop = '10px';
   hud.zIndex = 2000;
   ui.addControl(hud);
+  hud.isVisible = false;
 
   const title = new BABYLON.GUI.TextBlock();
   title.text = 'Find Rio, Chunk, and Snickerdoodle and bring them home!';
