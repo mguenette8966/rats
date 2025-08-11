@@ -580,7 +580,7 @@
   // Lincoln (brother) - half-size follower NPC
   function createLincoln() {
     const collider = BABYLON.MeshBuilder.CreateCapsule('LincolnCollider', { height: 1.0, radius: 0.25 }, scene);
-    collider.position = new BABYLON.Vector3(0, 0.55, 0);
+    collider.position = new BABYLON.Vector3(0, 0.5, 0);
     collider.checkCollisions = true;
     collider.ellipsoid = new BABYLON.Vector3(0.25, 0.5, 0.25);
     collider.ellipsoidOffset = new BABYLON.Vector3(0, 0.5, 0);
@@ -657,7 +657,7 @@
   // Dakota (brother) - half-size follower NPC (blue outfit)
   function createDakota() {
     const collider = BABYLON.MeshBuilder.CreateCapsule('DakotaCollider', { height: 1.0, radius: 0.25 }, scene);
-    collider.position = new BABYLON.Vector3(0, 0.55, 0);
+    collider.position = new BABYLON.Vector3(0, 0.5, 0);
     collider.checkCollisions = true;
     collider.ellipsoid = new BABYLON.Vector3(0.25, 0.5, 0.25);
     collider.ellipsoidOffset = new BABYLON.Vector3(0, 0.5, 0);
@@ -750,10 +750,12 @@
   shorts.parent = graceVisual; shorts.position = new BABYLON.Vector3(0, 0.85, 0); shorts.material = shortsMat;
 
   function createShoe(parent, name) {
-    const shoe = BABYLON.MeshBuilder.CreateBox(name + '_Body', { width: 0.32, height: 0.14, depth: 0.56 }, scene);
-    shoe.parent = parent; shoe.position = new BABYLON.Vector3(0, -0.86, 0.08); shoe.material = shoeMat;
-    const sole = BABYLON.MeshBuilder.CreateBox(name + '_Sole', { width: 0.34, height: 0.06, depth: 0.60 }, scene);
-    sole.parent = parent; sole.position = new BABYLON.Vector3(0, -0.92, 0.08); sole.material = soleMat;
+    const legHalf = 0.5; // leg height is 1.0 in createLimb
+    const bodyH = 0.16, soleH = 0.06;
+    const shoe = BABYLON.MeshBuilder.CreateBox(name + '_Body', { width: 0.32, height: bodyH, depth: 0.56 }, scene);
+    shoe.parent = parent; shoe.position = new BABYLON.Vector3(0, -legHalf - bodyH / 2, 0.08); shoe.material = shoeMat;
+    const sole = BABYLON.MeshBuilder.CreateBox(name + '_Sole', { width: 0.34, height: soleH, depth: 0.60 }, scene);
+    sole.parent = parent; sole.position = new BABYLON.Vector3(0, -legHalf - bodyH - soleH / 2, 0.08); sole.material = soleMat;
   }
   createShoe(leftLeg, 'LeftShoe');
   createShoe(rightLeg, 'RightShoe');
@@ -1039,12 +1041,12 @@
   });
   (function(){
     const p = randomSpawn([graceCollider.position]);
-    p.y = 0.55; // keep capsule centered so feet are on ground
+    p.y = 0.5; // keep capsule centered so feet are on ground
     lincoln.collider.position = p;
   })();
   (function(){
     const p = randomSpawn([graceCollider.position]);
-    p.y = 0.55; // keep capsule centered so feet are on ground
+    p.y = 0.5; // keep capsule centered so feet are on ground
     dakota.collider.position = p;
   })();
 
@@ -1083,14 +1085,14 @@
     lincoln.state.down = false;
     lincoln.visual.rotation.z = 0;
     lincoln.visual.position = BABYLON.Vector3.Zero();
-    lincoln.collider.position.y = 0.55;
+    lincoln.collider.position.y = 0.5;
     if (lincoln.state.autoUpTimer){ clearTimeout(lincoln.state.autoUpTimer); lincoln.state.autoUpTimer = null; }
   }
   function lincolnKnockDown(){
     lincoln.state.down = true;
     lincoln.visual.rotation.z = Math.PI / 2;
     lincoln.visual.position = new BABYLON.Vector3(0, -0.6, 0);
-    lincoln.collider.position.y = 0.55;
+    lincoln.collider.position.y = 0.5;
     nudgeFromWalls();
     if (lincoln.state.autoUpTimer){ clearTimeout(lincoln.state.autoUpTimer); }
     lincoln.state.autoUpTimer = setTimeout(() => {
@@ -1111,7 +1113,7 @@
         const step = dir.scale(lincolnBaseSpeed * (graceIsRunning ? 1.5 : 1.0) * dt);
         const moveVec = new BABYLON.Vector3(step.x, 0, step.z);
         lincoln.collider.moveWithCollisions(moveVec);
-        lincoln.collider.position.y = 0.55; // keep grounded
+        lincoln.collider.position.y = 0.5; // keep grounded
         lincoln.visual.rotation.y = Math.atan2(dir.x, dir.z);
         isMovingL = true;
       }
@@ -1167,14 +1169,14 @@
     dakota.state.down = false;
     dakota.visual.rotation.z = 0;
     dakota.visual.position = BABYLON.Vector3.Zero();
-    dakota.collider.position.y = 0.55;
+    dakota.collider.position.y = 0.5;
     if (dakota.state.autoUpTimer){ clearTimeout(dakota.state.autoUpTimer); dakota.state.autoUpTimer = null; }
   }
   function dakotaKnockDown(){
     dakota.state.down = true;
     dakota.visual.rotation.z = Math.PI / 2;
     dakota.visual.position = new BABYLON.Vector3(0, -0.6, 0);
-    dakota.collider.position.y = 0.55;
+    dakota.collider.position.y = 0.5;
     nudgeFromWallsD();
     if (dakota.state.autoUpTimer){ clearTimeout(dakota.state.autoUpTimer); }
     dakota.state.autoUpTimer = setTimeout(() => {
@@ -1197,7 +1199,7 @@
         const step = dir.scale(curSpeed * (dtFrames * (1/60)));
         const moveVec = new BABYLON.Vector3(step.x, 0, step.z);
         dakota.collider.moveWithCollisions(moveVec);
-        dakota.collider.position.y = 0.55; // keep grounded
+        dakota.collider.position.y = 0.5; // keep grounded
         dakota.visual.rotation.y = Math.atan2(dir.x, dir.z);
         isMovingD = true;
       }
