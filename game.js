@@ -839,28 +839,36 @@
   // Cached noise buffer for footsteps
   let footBuf = null;
   function getFootBuf(){ const ctx = getAudioCtx(); if (!ctx) return null; if (footBuf) return footBuf; const len = Math.floor(0.25 * ctx.sampleRate); const buf = ctx.createBuffer(1, len, ctx.sampleRate); const data = buf.getChannelData(0); for (let i=0;i<len;i++){ const t = i/ctx.sampleRate; const env = Math.exp(-t*18); data[i] = (Math.random()*2-1) * env; } footBuf = buf; return buf; }
-  let lastFootTimeFS = 0;
-  function playFootstep(volumeMul = 1) {
-    const ctx = getAudioCtx(); if (!ctx) return; const now = ctx.currentTime; if (now - lastFootTimeFS < 0.14) return; lastFootTimeFS = now; const buf = getFootBuf(); if (!buf) return; const src = ctx.createBufferSource(); src.buffer = buf; const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 280; filter.Q.value = 0.7; const gain = ctx.createGain(); const baseVol = graceIsRunning ? 1.0 : 0.8;
+  const footTimes = { grace: 0, lincoln: 0, dakota: 0 };
+  function playFootstepActor(actorKey, isRunning, volumeMul = 1, pan = 0) {
+    const ctx = getAudioCtx(); if (!ctx) return; const now = ctx.currentTime;
+    const minInterval = isRunning ? 0.10 : 0.16;
+    if (now - (footTimes[actorKey] || 0) < minInterval) return;
+    footTimes[actorKey] = now;
+    const buf = getFootBuf(); if (!buf) return;
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 260; filter.Q.value = 0.8;
+    const gain = ctx.createGain(); const baseVol = isRunning ? 1.0 : 0.8;
+    const panner = (ctx.createStereoPanner ? ctx.createStereoPanner() : null);
+    if (panner) panner.pan.value = pan;
     gain.gain.setValueAtTime(baseVol * volumeMul, now);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
     const bus = window.__hs_audio.getMaster?.();
-    if (bus) src.connect(filter).connect(gain).connect(bus); else src.connect(filter).connect(gain).connect(ctx.destination);
-    src.start(now);
-    src.stop(now + 0.24);
-
-    // Add low-frequency thud with slight variation
+    let chain = src; chain = chain.connect(filter); chain = chain.connect(gain); if (panner) chain = chain.connect(panner);
+    if (bus) chain.connect(bus); else chain.connect(ctx.destination);
+    src.start(now); src.stop(now + 0.24);
+    // Low sine thud layer
     const thudOsc = ctx.createOscillator(); const thudGain = ctx.createGain(); thudOsc.type = 'sine';
-    const baseF = 80 + Math.random()*20; thudOsc.frequency.setValueAtTime(baseF, now);
+    const baseF = 70 + Math.random()*18; thudOsc.frequency.setValueAtTime(baseF, now);
     thudGain.gain.setValueAtTime((baseVol * volumeMul) * 0.6, now);
     thudGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
-    if (bus) thudOsc.connect(thudGain).connect(bus); else thudOsc.connect(thudGain).connect(ctx.destination);
-    thudOsc.start(now);
-    thudOsc.stop(now + 0.24);
+    let tChain = thudOsc.connect(thudGain); if (panner) tChain = tChain.connect(panner);
+    if (bus) tChain.connect(bus); else tChain.connect(ctx.destination);
+    thudOsc.start(now); thudOsc.stop(now + 0.24);
   }
   // NPC footsteps with distance attenuation
   function attenuateByDistance(d, maxD = 30){ return Math.max(0, 1 - d/maxD); }
-  function playNpcFootstep(npcPos){ const ctx = getAudioCtx(); if (!ctx) return; const d = BABYLON.Vector3.Distance(npcPos, graceCollider.position); const volMul = attenuateByDistance(d); if (volMul <= 0) return; playFootstep(volMul * 2.0); }
+  function playNpcFootstep(actorKey, npcPos, pan){ const ctx = getAudioCtx(); if (!ctx) return; const d = BABYLON.Vector3.Distance(npcPos, graceCollider.position); const volMul = attenuateByDistance(d); if (volMul <= 0) return; playFootstepActor(actorKey, graceIsRunning, volMul * 1.8, pan); }
   // Chime on rat collect
   function playChime(){ const ctx = getAudioCtx(); if (!ctx) return; const now = ctx.currentTime; const freqs = [880, 1320]; const dur = 0.35; freqs.forEach((f,i)=>{ const osc = ctx.createOscillator(); const g = ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(f, now); g.gain.setValueAtTime(0.001, now); g.gain.exponentialRampToValueAtTime(1.0, now + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, now + dur + i*0.02); const bus = window.__hs_audio.getMaster?.(); if (bus) { osc.connect(g).connect(bus); } else { osc.connect(g).connect(ctx.destination); } osc.start(now + i*0.01); osc.stop(now + dur + 0.2 + i*0.02); }); }
   // Thud on NPC knockdown
@@ -920,8 +928,8 @@
 
     // Footstep triggers on zero-crossings of swing
     if (isMoving) {
-      if (prevSwing < 0 && swing >= 0) { playFootstep(); }
-      else if (prevSwing > 0 && swing <= 0) { playFootstep(); }
+      if (prevSwing < 0 && swing >= 0) { playFootstepActor('grace', graceIsRunning, 1.0, 0.0); }
+      else if (prevSwing > 0 && swing <= 0) { playFootstepActor('grace', graceIsRunning, 1.0, 0.0); }
     }
     prevSwing = swing;
   });
@@ -1142,8 +1150,8 @@
       lincoln.limbs.leftArm.rotation.x = swingOpp * 0.7;
       lincoln.limbs.rightArm.rotation.x = swing * 0.7;
       if (isMovingL) {
-        if (prevSwingL < 0 && swing >= 0) playNpcFootstep(lincoln.collider.position);
-        else if (prevSwingL > 0 && swing <= 0) playNpcFootstep(lincoln.collider.position);
+        if (prevSwingL < 0 && swing >= 0) playNpcFootstep('lincoln', lincoln.collider.position, -0.35);
+        else if (prevSwingL > 0 && swing <= 0) playNpcFootstep('lincoln', lincoln.collider.position, -0.35);
       }
       prevSwingL = swing;
     }
@@ -1228,8 +1236,8 @@
       dakota.limbs.leftArm.rotation.x = swingOpp * 0.7;
       dakota.limbs.rightArm.rotation.x = swing * 0.7;
       if (isMovingD) {
-        if (prevSwingD < 0 && swing >= 0) playNpcFootstep(dakota.collider.position);
-        else if (prevSwingD > 0 && swing <= 0) playNpcFootstep(dakota.collider.position);
+        if (prevSwingD < 0 && swing >= 0) playNpcFootstep('dakota', dakota.collider.position, 0.35);
+        else if (prevSwingD > 0 && swing <= 0) playNpcFootstep('dakota', dakota.collider.position, 0.35);
       }
       prevSwingD = swing;
     }
