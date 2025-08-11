@@ -802,25 +802,28 @@
   let graceWalkSpeedMeasured = moveSpeed;
   // Footstep sync
   let prevSwing = 0;
-  function playFootstep() {
-    const api = window.__hs_audio;
-    if (!api || !api.ensureAudio) return;
-    const ctx = api.ensureAudio();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    const baseFreq = graceIsRunning ? 160 : 130;
-    const baseVol = graceIsRunning ? 0.12 : 0.08;
-    osc.frequency.setValueAtTime(baseFreq, now);
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(baseVol, now + 0.005);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.10);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.12);
+  // Helper: get audio context from global API
+  function getAudioCtx(){ const api = window.__hs_audio; return (api && api.ensureAudio) ? api.ensureAudio() : null; }
+  // Cached noise buffer for footsteps
+  let footBuf = null;
+  function getFootBuf(){ const ctx = getAudioCtx(); if (!ctx) return null; if (footBuf) return footBuf; const len = Math.floor(0.18 * ctx.sampleRate); const buf = ctx.createBuffer(1, len, ctx.sampleRate); const data = buf.getChannelData(0); for (let i=0;i<len;i++){ const t = i/ctx.sampleRate; const env = Math.exp(-t*35); data[i] = (Math.random()*2-1) * env; } footBuf = buf; return buf; }
+  function playFootstep(volumeMul = 1) {
+    const ctx = getAudioCtx(); if (!ctx) return; const buf = getFootBuf(); if (!buf) return; const now = ctx.currentTime; const src = ctx.createBufferSource(); src.buffer = buf; const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = graceIsRunning ? 320 : 260; filter.Q.value = 0.5; const gain = ctx.createGain(); const baseVol = graceIsRunning ? 0.24 : 0.16; // doubled volume
+    gain.gain.setValueAtTime(baseVol * volumeMul, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    src.connect(filter).connect(gain).connect(ctx.destination);
+    src.start(now);
+    src.stop(now + 0.2);
   }
+  // NPC footsteps with distance attenuation
+  function attenuateByDistance(d, maxD = 30){ return Math.max(0, 1 - d/maxD); }
+  function playNpcFootstep(npcPos){ const ctx = getAudioCtx(); if (!ctx) return; const d = BABYLON.Vector3.Distance(npcPos, graceCollider.position); const volMul = attenuateByDistance(d); if (volMul <= 0) return; const prevRunning = graceIsRunning; // reuse main buffer/params
+    playFootstep(volMul * 0.8);
+  }
+  // Chime on rat collect
+  function playChime(){ const ctx = getAudioCtx(); if (!ctx) return; const now = ctx.currentTime; const freqs = [880, 1320]; const dur = 0.35; freqs.forEach((f,i)=>{ const osc = ctx.createOscillator(); const g = ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(f, now); g.gain.setValueAtTime(0.001, now); g.gain.exponentialRampToValueAtTime(0.2, now + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, now + dur + i*0.02); osc.connect(g).connect(ctx.destination); osc.start(now + i*0.01); osc.stop(now + dur + 0.2 + i*0.02); }); }
+  // Thud on NPC knockdown
+  function playThud(){ const ctx = getAudioCtx(); if (!ctx) return; const now = ctx.currentTime; const o = ctx.createOscillator(); const g = ctx.createGain(); const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 220; o.type = 'triangle'; o.frequency.setValueAtTime(110, now); g.gain.setValueAtTime(0.6, now); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.25); o.connect(f).connect(g).connect(ctx.destination); o.start(now); o.stop(now + 0.3); }
 
   let walkPhase = 0;
   scene.onBeforeRenderObservable.add(() => {
@@ -1023,6 +1026,7 @@
   // Lincoln AI and animation
   const lincolnBaseSpeed = moveSpeed;
   const lincolnStopDist = 1.8;
+  let prevSwingL = 0;
   function lincolnBlocked(dir, maxDist){
     const origin = lincoln.collider.position.add(new BABYLON.Vector3(0, 0.6, 0));
     const ray = new BABYLON.Ray(origin, dir, maxDist);
@@ -1067,6 +1071,7 @@
     lincoln.state.autoUpTimer = setTimeout(() => {
       if (lincoln.state.down) lincolnStandUp();
     }, 10000);
+    playThud();
   }
   scene.onBeforeRenderObservable.add(() => {
     if (!gameStarted) return;
@@ -1101,6 +1106,11 @@
       lincoln.limbs.rightLeg.rotation.x = swingOpp;
       lincoln.limbs.leftArm.rotation.x = swingOpp * 0.7;
       lincoln.limbs.rightArm.rotation.x = swing * 0.7;
+      if (isMovingL) {
+        if (prevSwingL < 0 && swing >= 0) playNpcFootstep(lincoln.collider.position);
+        else if (prevSwingL > 0 && swing <= 0) playNpcFootstep(lincoln.collider.position);
+      }
+      prevSwingL = swing;
     }
     
   });
@@ -1108,6 +1118,7 @@
   // Dakota AI and animation
   const dakotaBaseSpeed = moveSpeed;
   const dakotaStopDist = 1.8;
+  let prevSwingD = 0;
   function dakotaBlocked(dir, maxDist){
     const origin = dakota.collider.position.add(new BABYLON.Vector3(0, 0.6, 0));
     const ray = new BABYLON.Ray(origin, dir, maxDist);
@@ -1152,6 +1163,7 @@
     dakota.state.autoUpTimer = setTimeout(() => {
       if (dakota.state.down) dakotaStandUp();
     }, 10000);
+    playThud();
   }
   scene.onBeforeRenderObservable.add(() => {
     if (!gameStarted) return;
@@ -1185,6 +1197,11 @@
       dakota.limbs.rightLeg.rotation.x = swingOpp;
       dakota.limbs.leftArm.rotation.x = swingOpp * 0.7;
       dakota.limbs.rightArm.rotation.x = swing * 0.7;
+      if (isMovingD) {
+        if (prevSwingD < 0 && swing >= 0) playNpcFootstep(dakota.collider.position);
+        else if (prevSwingD > 0 && swing <= 0) playNpcFootstep(dakota.collider.position);
+      }
+      prevSwingD = swing;
     }
   });
 
@@ -1280,6 +1297,7 @@
     rat.root.rotation = new BABYLON.Vector3(0, 0, 0);
     rat.root.metadata.found = true;
     rat.label.isVisible = false;
+    playChime();
   }
 
   window.addEventListener('keydown', (e) => {
