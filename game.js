@@ -508,7 +508,7 @@
 
   // Player (Grace) – use a hidden collider and a visual rig to ensure torso height
   const graceCollider = BABYLON.MeshBuilder.CreateCapsule('GraceCollider', { height: 2.0, radius: 0.45 }, scene);
-  graceCollider.position = new BABYLON.Vector3(0, 2.1, 0);
+  graceCollider.position = new BABYLON.Vector3(0, 2.6, 0);
   graceCollider.checkCollisions = true;
   graceCollider.ellipsoid = new BABYLON.Vector3(0.45, 1.0, 0.45);
   graceCollider.ellipsoidOffset = new BABYLON.Vector3(0, 1.0, 0);
@@ -1100,7 +1100,7 @@
   }
   scene.onBeforeRenderObservable.add(() => {
     if (!gameStarted) return;
-    const dtFrames = engine.getDeltaTime() / 16.67;
+    const dt = engine.getDeltaTime() / 1000;
     if (!lincoln.state.down) {
       const toGrace = graceCollider.position.subtract(lincoln.collider.position);
       toGrace.y = 0;
@@ -1108,23 +1108,16 @@
       let isMovingL = false;
       if (dist > lincolnStopDist) {
         const dir = chooseLincolnDir(toGrace);
-        const base = graceWalkSpeedMeasured > 0.0001 ? graceWalkSpeedMeasured : (lincolnBaseSpeed / (1/60));
-        const curSpeed = base * (graceIsRunning ? 1.5 : 1.0);
-        const step = dir.scale(curSpeed * (dtFrames * (1/60)));
+        const step = dir.scale(lincolnBaseSpeed * (graceIsRunning ? 1.5 : 1.0) * dt);
         const moveVec = new BABYLON.Vector3(step.x, 0, step.z);
         lincoln.collider.moveWithCollisions(moveVec);
-        // keep grounded and avoid jitter
-        lincoln.collider.position.y = 0.55;
+        lincoln.collider.position.y = 0.55; // keep grounded
         lincoln.visual.rotation.y = Math.atan2(dir.x, dir.z);
         isMovingL = true;
       }
-      else {
-        // near Grace: do not move
-        isMovingL = false;
-      }
       // Walk anim
       const targetPhaseSpeed = (isMovingL ? 0.12 : 0);
-      lincoln.state.walkPhase += targetPhaseSpeed * dtFrames * 60;
+      lincoln.state.walkPhase += targetPhaseSpeed * dt * 60;
       const swing = isMovingL ? Math.sin(lincoln.state.walkPhase) * 0.28 : 0;
       const swingOpp = -swing;
       lincoln.limbs.leftLeg.rotation.x = swing;
@@ -1137,7 +1130,6 @@
       }
       prevSwingL = swing;
     }
-    
   });
 
   // Dakota AI and animation
@@ -1205,13 +1197,9 @@
         const step = dir.scale(curSpeed * (dtFrames * (1/60)));
         const moveVec = new BABYLON.Vector3(step.x, 0, step.z);
         dakota.collider.moveWithCollisions(moveVec);
-        // keep grounded and avoid jitter
-        dakota.collider.position.y = 0.55;
+        dakota.collider.position.y = 0.55; // keep grounded
         dakota.visual.rotation.y = Math.atan2(dir.x, dir.z);
         isMovingD = true;
-      }
-      else {
-        isMovingD = false;
       }
       // Walk anim
       const targetPhaseSpeed = (isMovingD ? 0.12 : 0);
