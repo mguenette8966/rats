@@ -812,7 +812,7 @@
   let footBuf = null;
   function getFootBuf(){ const ctx = getAudioCtx(); if (!ctx) return null; if (footBuf) return footBuf; const len = Math.floor(0.18 * ctx.sampleRate); const buf = ctx.createBuffer(1, len, ctx.sampleRate); const data = buf.getChannelData(0); for (let i=0;i<len;i++){ const t = i/ctx.sampleRate; const env = Math.exp(-t*35); data[i] = (Math.random()*2-1) * env; } footBuf = buf; return buf; }
   function playFootstep(volumeMul = 1) {
-    const ctx = getAudioCtx(); if (!ctx) return; const buf = getFootBuf(); if (!buf) return; const now = ctx.currentTime; const src = ctx.createBufferSource(); src.buffer = buf; const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = graceIsRunning ? 320 : 260; filter.Q.value = 0.5; const gain = ctx.createGain(); const baseVol = graceIsRunning ? 0.24 : 0.16; // doubled volume
+    const ctx = getAudioCtx(); if (!ctx) return; const buf = getFootBuf(); if (!buf) return; const now = ctx.currentTime; const src = ctx.createBufferSource(); src.buffer = buf; const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = graceIsRunning ? 1000 : 800; filter.Q.value = 0.5; const gain = ctx.createGain(); const baseVol = graceIsRunning ? 1.2 : 0.9; // boosted a lot
     gain.gain.setValueAtTime(baseVol * volumeMul, now);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
     src.connect(filter).connect(gain).connect(ctx.destination);
@@ -821,13 +821,11 @@
   }
   // NPC footsteps with distance attenuation
   function attenuateByDistance(d, maxD = 30){ return Math.max(0, 1 - d/maxD); }
-  function playNpcFootstep(npcPos){ const ctx = getAudioCtx(); if (!ctx) return; const d = BABYLON.Vector3.Distance(npcPos, graceCollider.position); const volMul = attenuateByDistance(d); if (volMul <= 0) return; const prevRunning = graceIsRunning; // reuse main buffer/params
-    playFootstep(volMul * 0.8);
-  }
+  function playNpcFootstep(npcPos){ const ctx = getAudioCtx(); if (!ctx) return; const d = BABYLON.Vector3.Distance(npcPos, graceCollider.position); const volMul = attenuateByDistance(d); if (volMul <= 0) return; playFootstep(volMul * 2.0); }
   // Chime on rat collect
-  function playChime(){ const ctx = getAudioCtx(); if (!ctx) return; const now = ctx.currentTime; const freqs = [880, 1320]; const dur = 0.35; freqs.forEach((f,i)=>{ const osc = ctx.createOscillator(); const g = ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(f, now); g.gain.setValueAtTime(0.001, now); g.gain.exponentialRampToValueAtTime(0.2, now + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, now + dur + i*0.02); osc.connect(g).connect(ctx.destination); osc.start(now + i*0.01); osc.stop(now + dur + 0.2 + i*0.02); }); }
+  function playChime(){ const ctx = getAudioCtx(); if (!ctx) return; const now = ctx.currentTime; const freqs = [880, 1320]; const dur = 0.35; freqs.forEach((f,i)=>{ const osc = ctx.createOscillator(); const g = ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(f, now); g.gain.setValueAtTime(0.001, now); g.gain.exponentialRampToValueAtTime(1.0, now + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, now + dur + i*0.02); osc.connect(g).connect(ctx.destination); osc.start(now + i*0.01); osc.stop(now + dur + 0.2 + i*0.02); }); }
   // Thud on NPC knockdown
-  function playThud(){ const ctx = getAudioCtx(); if (!ctx) return; const now = ctx.currentTime; const o = ctx.createOscillator(); const g = ctx.createGain(); const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 220; o.type = 'triangle'; o.frequency.setValueAtTime(110, now); g.gain.setValueAtTime(0.6, now); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.25); o.connect(f).connect(g).connect(ctx.destination); o.start(now); o.stop(now + 0.3); }
+  function playThud(){ const ctx = getAudioCtx(); if (!ctx) return; const now = ctx.currentTime; const o = ctx.createOscillator(); const g = ctx.createGain(); const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 400; o.type = 'triangle'; o.frequency.setValueAtTime(150, now); g.gain.setValueAtTime(3.0, now); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.25); o.connect(f).connect(g).connect(ctx.destination); o.start(now); o.stop(now + 0.3); }
 
   let walkPhase = 0;
   scene.onBeforeRenderObservable.add(() => {
