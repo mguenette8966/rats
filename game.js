@@ -508,7 +508,7 @@
 
   // Player (Grace) – use a hidden collider and a visual rig to ensure torso height
   const graceCollider = BABYLON.MeshBuilder.CreateCapsule('GraceCollider', { height: 2.0, radius: 0.45 }, scene);
-  graceCollider.position = new BABYLON.Vector3(0, 1.1, 0);
+  graceCollider.position = new BABYLON.Vector3(0, 1.5, 0);
   graceCollider.checkCollisions = true;
   graceCollider.ellipsoid = new BABYLON.Vector3(0.45, 1.0, 0.45);
   graceCollider.ellipsoidOffset = new BABYLON.Vector3(0, 1.0, 0);
@@ -742,8 +742,8 @@
   shirt.parent = graceVisual; shirt.position = new BABYLON.Vector3(0, 1.55, 0); shirt.material = shirtMat;
   // Short sleeves attached to arms
   const leftSleeve = BABYLON.MeshBuilder.CreateCylinder('LeftSleeve', { height: 0.25, diameter: 0.34 }, scene);
-  leftSleeve.parent = leftArm; leftSleeve.position = new BABYLON.Vector3(0, 0.40, 0); leftSleeve.material = shirtMat;
-  const rightSleeve = leftSleeve.clone('RightSleeve'); rightSleeve.parent = rightArm; rightSleeve.position = new BABYLON.Vector3(0, 0.40, 0);
+  leftSleeve.parent = leftArm; leftSleeve.position = new BABYLON.Vector3(0, 0.30, 0); leftSleeve.material = shirtMat;
+  const rightSleeve = leftSleeve.clone('RightSleeve'); rightSleeve.parent = rightArm; rightSleeve.position = new BABYLON.Vector3(0, 0.30, 0);
 
   // Shorts (larger to stand out)
   const shorts = BABYLON.MeshBuilder.CreateBox('Shorts', { width: 0.85, height: 0.68, depth: 0.70 }, scene);
