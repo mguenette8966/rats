@@ -909,7 +909,7 @@
     lastGracePos.copyFrom(after);
 
     // Limb walk animation
-    const targetPhaseSpeed = (isMoving ? 0.06 : 0);
+    const targetPhaseSpeed = (isMoving ? 0.03 : 0);
     walkPhase += targetPhaseSpeed * dtFrames * 60;
     const swing = isMoving ? Math.sin(walkPhase) * 0.35 : 0;
     const swingOpp = -swing;
@@ -1133,7 +1133,7 @@
         isMovingL = true;
       }
       // Walk anim
-      const targetPhaseSpeed = (isMovingL ? 0.06 : 0);
+      const targetPhaseSpeed = (isMovingL ? 0.03 : 0);
       lincoln.state.walkPhase += targetPhaseSpeed * dtFrames * 60;
       const swing = isMovingL ? Math.sin(lincoln.state.walkPhase) * 0.28 : 0;
       const swingOpp = -swing;
@@ -1219,7 +1219,7 @@
         isMovingD = true;
       }
       // Walk anim
-      const targetPhaseSpeed = (isMovingD ? 0.06 : 0);
+      const targetPhaseSpeed = (isMovingD ? 0.03 : 0);
       dakota.state.walkPhase += targetPhaseSpeed * dtFrames * 60;
       const swing = isMovingD ? Math.sin(dakota.state.walkPhase) * 0.28 : 0;
       const swingOpp = -swing;
