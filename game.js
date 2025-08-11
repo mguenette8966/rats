@@ -508,7 +508,7 @@
 
   // Player (Grace) – use a hidden collider and a visual rig to ensure torso height
   const graceCollider = BABYLON.MeshBuilder.CreateCapsule('GraceCollider', { height: 2.0, radius: 0.45 }, scene);
-  graceCollider.position = new BABYLON.Vector3(0, 1.5, 0);
+  graceCollider.position = new BABYLON.Vector3(0, 2.1, 0);
   graceCollider.checkCollisions = true;
   graceCollider.ellipsoid = new BABYLON.Vector3(0.45, 1.0, 0.45);
   graceCollider.ellipsoidOffset = new BABYLON.Vector3(0, 1.0, 0);
