@@ -112,7 +112,7 @@
       }
       if (audioCtx && !masterGain) {
         masterGain = audioCtx.createGain();
-        masterGain.gain.value = 2.0; // strong boost
+        masterGain.gain.value = 3.0; // stronger boost
         masterGain.connect(audioCtx.destination);
       }
       return audioCtx;
@@ -123,6 +123,8 @@
     const resumeAny = () => { try { ensureAudio(); } catch(e){} };
     window.addEventListener('pointerdown', resumeAny, { once: true, capture: true });
     window.addEventListener('keydown', resumeAny, { once: true, capture: true });
+    window.addEventListener('click', resumeAny, { once: true, capture: true });
+    window.addEventListener('touchstart', resumeAny, { once: true, capture: true });
 
     function playConfirmBeep() {
       const ctx = ensureAudio(); if (!ctx) return; const now = ctx.currentTime;
@@ -1092,7 +1094,7 @@
   function lincolnKnockDown(){
     lincoln.state.down = true;
     lincoln.visual.rotation.z = Math.PI / 2;
-    lincoln.visual.position = new BABYLON.Vector3(0, -0.6, 0);
+    lincoln.visual.position = new BABYLON.Vector3(0, -0.1, 0); // keep above ground
     lincoln.collider.position.y = 0.48;
     nudgeFromWalls();
     if (lincoln.state.autoUpTimer){ clearTimeout(lincoln.state.autoUpTimer); }
@@ -1177,7 +1179,7 @@
   function dakotaKnockDown(){
     dakota.state.down = true;
     dakota.visual.rotation.z = Math.PI / 2;
-    dakota.visual.position = new BABYLON.Vector3(0, -0.6, 0);
+    dakota.visual.position = new BABYLON.Vector3(0, -0.1, 0); // keep above ground
     dakota.collider.position.y = 0.48;
     nudgeFromWallsD();
     if (dakota.state.autoUpTimer){ clearTimeout(dakota.state.autoUpTimer); }
