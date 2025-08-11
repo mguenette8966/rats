@@ -102,15 +102,19 @@
     // Audio setup helpers
     let audioCtx = null;
     function ensureAudio() {
-      if (audioCtx) return audioCtx;
-      const Ctx = window.AudioContext || window.webkitAudioContext;
-      if (Ctx) {
-        audioCtx = new Ctx();
+      if (!audioCtx) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (Ctx) audioCtx = new Ctx();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume?.();
       }
       return audioCtx;
     }
     // Expose to outer scope for footsteps
     window.__hs_audio = { ensureAudio: ensureAudio };
+    // Also resume on first user gesture anywhere
+    window.addEventListener('pointerdown', () => { try { ensureAudio(); } catch(e){} }, { once: true, capture: true });
 
     function showInstructionScreen(onDone) {
       const instr = new BABYLON.GUI.Rectangle('instructionOverlay');
