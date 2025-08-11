@@ -742,18 +742,18 @@
   shirt.parent = graceVisual; shirt.position = new BABYLON.Vector3(0, 1.55, 0); shirt.material = shirtMat;
   // Short sleeves attached to arms
   const leftSleeve = BABYLON.MeshBuilder.CreateCylinder('LeftSleeve', { height: 0.25, diameter: 0.34 }, scene);
-  leftSleeve.parent = leftArm; leftSleeve.position = new BABYLON.Vector3(0, -0.05, 0); leftSleeve.material = shirtMat;
-  const rightSleeve = leftSleeve.clone('RightSleeve'); rightSleeve.parent = rightArm; rightSleeve.position = new BABYLON.Vector3(0, -0.05, 0);
+  leftSleeve.parent = leftArm; leftSleeve.position = new BABYLON.Vector3(0, 0.40, 0); leftSleeve.material = shirtMat;
+  const rightSleeve = leftSleeve.clone('RightSleeve'); rightSleeve.parent = rightArm; rightSleeve.position = new BABYLON.Vector3(0, 0.40, 0);
 
   // Shorts (larger to stand out)
   const shorts = BABYLON.MeshBuilder.CreateBox('Shorts', { width: 0.85, height: 0.68, depth: 0.70 }, scene);
   shorts.parent = graceVisual; shorts.position = new BABYLON.Vector3(0, 0.85, 0); shorts.material = shortsMat;
 
   function createShoe(parent, name) {
-    const shoe = BABYLON.MeshBuilder.CreateBox(name + '_Body', { width: 0.28, height: 0.12, depth: 0.5 }, scene);
-    shoe.parent = parent; shoe.position = new BABYLON.Vector3(0, -0.70, 0.12); shoe.material = shoeMat;
-    const sole = BABYLON.MeshBuilder.CreateBox(name + '_Sole', { width: 0.3, height: 0.04, depth: 0.52 }, scene);
-    sole.parent = parent; sole.position = new BABYLON.Vector3(0, -0.78, 0.12); sole.material = soleMat;
+    const shoe = BABYLON.MeshBuilder.CreateBox(name + '_Body', { width: 0.32, height: 0.14, depth: 0.56 }, scene);
+    shoe.parent = parent; shoe.position = new BABYLON.Vector3(0, -0.86, 0.08); shoe.material = shoeMat;
+    const sole = BABYLON.MeshBuilder.CreateBox(name + '_Sole', { width: 0.34, height: 0.06, depth: 0.60 }, scene);
+    sole.parent = parent; sole.position = new BABYLON.Vector3(0, -0.92, 0.08); sole.material = soleMat;
   }
   createShoe(leftLeg, 'LeftShoe');
   createShoe(rightLeg, 'RightShoe');
