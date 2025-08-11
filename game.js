@@ -200,7 +200,7 @@
     currentMode = 'MENU';
     gameStarted = false;
     const overlay = new BABYLON.GUI.Rectangle('gameSelectOverlay');
-    overlay.width = 1; overlay.height = 1; overlay.background = '#1a1a1add'; overlay.thickness = 0; overlay.zIndex = 20000; overlay.isPointerBlocker = true;
+    overlay.width = 1; overlay.height = 1; overlay.background = '#000000ff'; overlay.thickness = 0; overlay.zIndex = 20000; overlay.isPointerBlocker = true;
     ui.addControl(overlay);
 
     const stack = new BABYLON.GUI.StackPanel(); stack.isVertical = true; stack.width = '80%'; stack.height = '100%'; stack.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_CENTER; overlay.addControl(stack);
@@ -223,6 +223,9 @@
   function startCageLevel() {
     // Hide H&S HUD if present
     try { if (hud) hud.isVisible = false; } catch(e){}
+    HNSRoot.setEnabled(false);
+    // Dark background for cage
+    scene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.05, 1.0);
     // Place cage far from town
     const root = new BABYLON.TransformNode('CageRoot', scene);
     const base = new BABYLON.Vector3(300, 0, 0);
@@ -233,7 +236,7 @@
     const floorThickness = 0.5;
     const cageWallHeight = levelHeight*2 + levelHeight; // space above top equal to distance between levels
 
-    const blackMat = new BABYLON.StandardMaterial('cageBlack', scene); blackMat.diffuseColor = new BABYLON.Color3(0,0,0);
+    const blackMat = new BABYLON.StandardMaterial('cageBlack', scene); blackMat.diffuseColor = new BABYLON.Color3(0.02,0.02,0.02); blackMat.emissiveColor = new BABYLON.Color3(0.02,0.02,0.02);
 
     // Bottom floor
     const floor1 = BABYLON.MeshBuilder.CreateBox('CageFloor1', { width: levelSize, depth: levelSize, height: floorThickness }, scene);
@@ -260,7 +263,7 @@
     ramp.position.z += rampLen*0.25;
 
     // Cage bars around perimeter
-    const barMat = new BABYLON.StandardMaterial('barMat', scene); barMat.diffuseColor = new BABYLON.Color3(0.15,0.15,0.15);
+    const barMat = new BABYLON.StandardMaterial('barMat', scene); barMat.diffuseColor = new BABYLON.Color3(0.2,0.2,0.2); barMat.emissiveColor = new BABYLON.Color3(0.05,0.05,0.05);
     const barSpacing = 2.5; const barRadius = 0.1; const barH = cageWallHeight;
     function addBar(x,z){ const c = BABYLON.MeshBuilder.CreateCylinder('CageBar',{height:barH, diameter: barRadius*2}, scene); c.material = barMat; c.position = base.add(new BABYLON.Vector3(x, barH/2, z)); c.checkCollisions = true; c.parent = root; }
     for (let x = -levelSize/2; x <= levelSize/2; x += barSpacing) { addBar(x, -levelSize/2); addBar(x, levelSize/2); }
