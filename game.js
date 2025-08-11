@@ -303,6 +303,8 @@
   // Perimeter fence to prevent falling off
   function createFence() {
     const thickness = 0.5; const height = 3; const halfW = 100; const halfH = 100;
+    const fenceMat = new BABYLON.StandardMaterial('fenceMat', scene);
+    fenceMat.diffuseColor = new BABYLON.Color3(0.7, 0.7, 0.7);
     const north = BABYLON.MeshBuilder.CreateBox('fenceN', { width: 200, height, depth: thickness }, scene);
     north.position = new BABYLON.Vector3(0, height / 2, -halfH + thickness / 2);
     const south = north.clone('fenceS'); south.position = new BABYLON.Vector3(0, height / 2, halfH - thickness / 2);
