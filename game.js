@@ -22,8 +22,11 @@
   camera.upperRadiusLimit = 20;
   camera.lowerBetaLimit = BABYLON.Angle.FromDegrees(10).radians();
   camera.upperBetaLimit = BABYLON.Angle.FromDegrees(80).radians();
-  // Attach camera control only after a game starts
-  function attachCameraIfNeeded(){ if (gameStarted && !camera._attachedByCode) { camera.attachControl(canvas, true); camera._attachedByCode = true; } }
+  camera.attachControl(canvas, true);
+  // Reduce default pointer influence (we manage yaw/tilt ourselves)
+  if (camera.inputs && camera.inputs.attached && camera.inputs.attached.pointers) {
+    try { camera.inputs.attached.pointers.buttons = []; } catch (e) {}
+  }
   camera.panningSensibility = 0;
 
   const light = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0, 1, 0), scene);
@@ -33,11 +36,9 @@
   dirLight.intensity = 0.6;
 
   // GUI Overlay
-  const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('UI');
-  ui.layer.layerMask = 0x0FFFFFFF; ui.rootContainer.zIndex = 3000;
-  let currentMode = 'MENU';
-  const HNSRoot = new BABYLON.TransformNode('HNSRoot', scene);
-  HNSRoot.setEnabled(false);
+  const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('ui');
+  ui.layer.layerMask = 0x0FFFFFFF; // ensure visible
+  ui.rootContainer.zIndex = 3000;
 
   function showToast(message, durationMs = 2000) {
     const rect = new BABYLON.GUI.Rectangle();
@@ -101,36 +102,15 @@
     // Audio setup helpers
     let audioCtx = null;
     function ensureAudio() {
-      if (!audioCtx) {
-        const Ctx = window.AudioContext || window.webkitAudioContext;
-        if (Ctx) audioCtx = new Ctx();
-      }
-      if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume?.();
+      if (audioCtx) return audioCtx;
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) {
+        audioCtx = new Ctx();
       }
       return audioCtx;
     }
     // Expose to outer scope for footsteps
-    function getFootBuffer() {
-      const ctx = ensureAudio();
-      if (!ctx) return null;
-      if (window.__hs_audio && window.__hs_audio.footBuffer) return window.__hs_audio.footBuffer;
-      const duration = 0.15;
-      const sampleRate = ctx.sampleRate;
-      const length = Math.floor(duration * sampleRate);
-      const buffer = ctx.createBuffer(1, length, sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < length; i++) {
-        // white noise thump with exponential decay
-        const t = i / sampleRate;
-        const env = Math.exp(-t * 40); // fast decay
-        data[i] = (Math.random() * 2 - 1) * env;
-      }
-      if (!window.__hs_audio) window.__hs_audio = {};
-      window.__hs_audio.footBuffer = buffer;
-      return buffer;
-    }
-    window.__hs_audio = { ensureAudio: ensureAudio, getFootBuffer: getFootBuffer };
+    window.__hs_audio = { ensureAudio: ensureAudio };
 
     function showInstructionScreen(onDone) {
       const instr = new BABYLON.GUI.Rectangle('instructionOverlay');
@@ -165,7 +145,7 @@
     startBtn.onPointerUpObservable.add(() => {
       ensureAudio();
       ui.removeControl(overlay);
-      showInstructionScreen(() => { if (currentMode==='HNS') hud.isVisible = true; gameStarted = true; attachCameraIfNeeded(); canvas.focus(); });
+      showInstructionScreen(() => { gameStarted = true; canvas.focus(); });
     });
     stack.addControl(startBtn);
   }
@@ -195,94 +175,8 @@
     return rect;
   }
 
-  // Build master game select (game starts paused)
-  function createGameSelectScreen() {
-    currentMode = 'MENU';
-    gameStarted = false;
-    const overlay = new BABYLON.GUI.Rectangle('gameSelectOverlay');
-    overlay.width = 1; overlay.height = 1; overlay.background = '#000000ff'; overlay.thickness = 0; overlay.zIndex = 20000; overlay.isPointerBlocker = true;
-    ui.addControl(overlay);
-
-    const stack = new BABYLON.GUI.StackPanel(); stack.isVertical = true; stack.width = '80%'; stack.height = '100%'; stack.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_CENTER; overlay.addControl(stack);
-
-    const title = new BABYLON.GUI.TextBlock(); title.text = 'Select Your Game'; title.color = 'white'; title.fontSize = 64; title.paddingBottom = '30px'; stack.addControl(title);
-
-    const subtitle = new BABYLON.GUI.TextBlock(); subtitle.text = 'Choose an adventure to begin'; subtitle.color = '#ddd'; subtitle.fontSize = 24; subtitle.paddingBottom = '40px'; stack.addControl(subtitle);
-
-    function makeBtn(text, bg){ const b = BABYLON.GUI.Button.CreateSimpleButton('btn_'+text, text); b.width = '340px'; b.height = '80px'; b.color = 'white'; b.background = bg; b.fontSize = 28; b.cornerRadius = 12; b.paddingBottom = '20px'; return b; }
-
-    const btnHNS = makeBtn('Hide and Squeak', '#2b7a2b');
-    btnHNS.onPointerUpObservable.add(() => { currentMode = 'HNS'; HNSRoot.setEnabled(true); ui.removeControl(overlay); createTitleScreen(); });
-    stack.addControl(btnHNS);
-
-    const btnUntitled = makeBtn('Untitled Game', '#1f5f99');
-    btnUntitled.onPointerUpObservable.add(() => { currentMode = 'CAGE'; HNSRoot.setEnabled(false); ui.removeControl(overlay); startCageLevel(); });
-    stack.addControl(btnUntitled);
-  }
-
-  function startCageLevel() {
-    // Hide H&S HUD if present
-    try { if (hud) hud.isVisible = false; } catch(e){}
-    HNSRoot.setEnabled(false);
-    // Dark background for cage
-    scene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.05, 1.0);
-    // Place cage far from town
-    const root = new BABYLON.TransformNode('CageRoot', scene);
-    const base = new BABYLON.Vector3(300, 0, 0);
-    root.position = base.clone();
-
-    const levelSize = 50; // quarter of 200
-    const levelHeight = 5;
-    const floorThickness = 0.5;
-    const cageWallHeight = levelHeight*2 + levelHeight; // space above top equal to distance between levels
-
-    const blackMat = new BABYLON.StandardMaterial('cageBlack', scene); blackMat.diffuseColor = new BABYLON.Color3(0.02,0.02,0.02); blackMat.emissiveColor = new BABYLON.Color3(0.02,0.02,0.02);
-
-    // Bottom floor
-    const floor1 = BABYLON.MeshBuilder.CreateBox('CageFloor1', { width: levelSize, depth: levelSize, height: floorThickness }, scene);
-    floor1.position = base.add(new BABYLON.Vector3(0, floorThickness/2, 0)); floor1.material = blackMat; floor1.checkCollisions = true; floor1.parent = root;
-
-    // Top floor split with opening in middle (gapWidth)
-    const gapWidth = 10;
-    const half = (levelSize - gapWidth)/2;
-    const y2 = levelHeight + floorThickness/2;
-    const floor2A = BABYLON.MeshBuilder.CreateBox('CageFloor2A', { width: half, depth: levelSize, height: floorThickness }, scene);
-    floor2A.position = base.add(new BABYLON.Vector3(-(gapWidth/2 + half/2), y2, 0)); floor2A.material = blackMat; floor2A.checkCollisions = true; floor2A.parent = root;
-    const floor2B = BABYLON.MeshBuilder.CreateBox('CageFloor2B', { width: half, depth: levelSize, height: floorThickness }, scene);
-    floor2B.position = base.add(new BABYLON.Vector3( (gapWidth/2 + half/2), y2, 0)); floor2B.material = blackMat; floor2B.checkCollisions = true; floor2B.parent = root;
-
-    // Ramp from floor1 up to floor2A edge
-    const rampLen = levelHeight * 2.2; const rampHeight = 0.5; const rampWidth = 6;
-    const ramp = BABYLON.MeshBuilder.CreateBox('CageRamp', { width: rampWidth, depth: rampLen, height: rampHeight }, scene);
-    ramp.material = blackMat; ramp.checkCollisions = true; ramp.parent = root;
-    ramp.rotation.x = -Math.atan2(levelHeight, rampLen);
-    // Position ramp so bottom rests on floor1 and top meets floor2A edge
-    const rampCenterY = floorThickness/2 + (levelHeight/2);
-    ramp.position = base.add(new BABYLON.Vector3(-levelSize*0.2, rampCenterY, -levelSize*0.15));
-    // Align ramp end to floor2A: shift forward towards center
-    ramp.position.z += rampLen*0.25;
-
-    // Cage bars around perimeter
-    const barMat = new BABYLON.StandardMaterial('barMat', scene); barMat.diffuseColor = new BABYLON.Color3(0.2,0.2,0.2); barMat.emissiveColor = new BABYLON.Color3(0.05,0.05,0.05);
-    const barSpacing = 2.5; const barRadius = 0.1; const barH = cageWallHeight;
-    function addBar(x,z){ const c = BABYLON.MeshBuilder.CreateCylinder('CageBar',{height:barH, diameter: barRadius*2}, scene); c.material = barMat; c.position = base.add(new BABYLON.Vector3(x, barH/2, z)); c.checkCollisions = true; c.parent = root; }
-    for (let x = -levelSize/2; x <= levelSize/2; x += barSpacing) { addBar(x, -levelSize/2); addBar(x, levelSize/2); }
-    for (let z = -levelSize/2; z <= levelSize/2; z += barSpacing) { addBar(-levelSize/2, z); addBar(levelSize/2, z); }
-    // Roof bars
-    const roofY = cageWallHeight;
-    for (let x = -levelSize/2; x <= levelSize/2; x += barSpacing) {
-      const rb = BABYLON.MeshBuilder.CreateCylinder('CageRoofBar', { height: levelSize, diameter: barRadius*2 }, scene);
-      rb.rotation.z = Math.PI/2; rb.material = barMat; rb.position = base.add(new BABYLON.Vector3(x, roofY, 0)); rb.checkCollisions = true; rb.parent = root;
-    }
-
-    // Move Grace into cage and start
-    graceCollider.position = base.add(new BABYLON.Vector3(0, 1.1, levelSize*0.2));
-    camera.setTarget(graceCollider);
-    gameStarted = true; attachCameraIfNeeded();
-  }
-
-  // Show game selection on launch
-  createGameSelectScreen();
+  // Build title screen (game starts paused)
+  createTitleScreen();
 
   // Ground & Roads
   const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 200, height: 200, subdivisions: 2 }, scene);
@@ -290,7 +184,6 @@
   groundMat.diffuseColor = new BABYLON.Color3(0.55, 0.75, 0.45); // grass-green
   ground.material = groundMat;
   ground.checkCollisions = true;
-  ground.parent = HNSRoot;
 
   function createRoad(x, z, width, length, rotationY = 0) {
     const road = BABYLON.MeshBuilder.CreateGround('road', { width, height: length }, scene);
@@ -299,22 +192,21 @@
     const mat = new BABYLON.StandardMaterial('roadMat' + Math.random(), scene);
     mat.diffuseColor = new BABYLON.Color3(0.18, 0.18, 0.18);
     road.material = mat;
-    road.parent = HNSRoot;
     return road;
   }
 
   // Perimeter fence to prevent falling off
   function createFence() {
-    const thickness = 0.5; const height = 3; const halfW = 100; const halfH = 100;
+    const halfW = 100, halfH = 100, thickness = 0.5, height = 3;
     const fenceMat = new BABYLON.StandardMaterial('fenceMat', scene);
     fenceMat.diffuseColor = new BABYLON.Color3(0.7, 0.7, 0.7);
-    const north = BABYLON.MeshBuilder.CreateBox('fenceN', { width: 200, height, depth: thickness }, scene);
+    const north = BABYLON.MeshBuilder.CreateBox('fenceN', { width: halfW * 2, height, depth: thickness }, scene);
     north.position = new BABYLON.Vector3(0, height / 2, -halfH + thickness / 2);
     const south = north.clone('fenceS'); south.position = new BABYLON.Vector3(0, height / 2, halfH - thickness / 2);
-    const west = BABYLON.MeshBuilder.CreateBox('fenceW', { width: thickness, height, depth: 200 }, scene);
+    const west = BABYLON.MeshBuilder.CreateBox('fenceW', { width: thickness, height, depth: halfH * 2 }, scene);
     west.position = new BABYLON.Vector3(-halfW + thickness / 2, height / 2, 0);
     const east = west.clone('fenceE'); east.position = new BABYLON.Vector3(halfW - thickness / 2, height / 2, 0);
-    ;[north, south, west, east].forEach(w => { w.material = fenceMat; w.checkCollisions = true; w.parent = HNSRoot; });
+    ;[north, south, west, east].forEach(w => { w.material = fenceMat; w.checkCollisions = true; });
   }
   createFence();
 
@@ -333,7 +225,6 @@
     const box = BABYLON.MeshBuilder.CreateBox(name, { width: w, depth: d, height: h }, scene);
     box.position = new BABYLON.Vector3(x, h / 2, z);
     box.checkCollisions = true;
-    box.parent = HNSRoot;
 
     const mat = new BABYLON.StandardMaterial('mat_' + name, scene);
     mat.diffuseColor = color;
@@ -512,7 +403,6 @@
   const home = homeCandidates.length ? homeCandidates[Math.floor(Math.random() * homeCandidates.length)] : buildings[0];
   const homeMarker = createFloatingBillboard('HOME', home, 'Home');
   homeMarker.isVisible = false;
-  try { homeMarker.parent = HNSRoot; } catch(e){}
 
   // Add "Grace's House" sign above home door if available
   if (home && home.metadata && home.metadata.door) {
@@ -597,7 +487,6 @@
   graceCollider.ellipsoid = new BABYLON.Vector3(0.45, 1.0, 0.45);
   graceCollider.ellipsoidOffset = new BABYLON.Vector3(0, 1.0, 0);
   graceCollider.isVisible = false;
-  graceCollider.parent = HNSRoot;
 
   const graceVisual = new BABYLON.TransformNode('GraceVisual', scene);
   graceVisual.parent = graceCollider;
@@ -913,28 +802,24 @@
   let graceWalkSpeedMeasured = moveSpeed;
   // Footstep sync
   let prevSwing = 0;
-  let lastFootTime = 0;
   function playFootstep() {
     const api = window.__hs_audio;
-    if (!api || !api.ensureAudio || !api.getFootBuffer) return;
+    if (!api || !api.ensureAudio) return;
     const ctx = api.ensureAudio();
     if (!ctx) return;
     const now = ctx.currentTime;
-    // throttle steps to >= 90ms apart
-    if (now - lastFootTime < 0.09) return;
-    lastFootTime = now;
-    const buf = api.getFootBuffer();
-    if (!buf) return;
-    const src = ctx.createBufferSource(); src.buffer = buf;
-    const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = graceIsRunning ? 280 : 220; filter.Q.value = 0.7;
+    const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    const vol = graceIsRunning ? 0.25 : 0.18;
-    gain.gain.setValueAtTime(vol, now);
-    const endTime = now + 0.16;
-    gain.gain.exponentialRampToValueAtTime(0.0001, endTime);
-    src.connect(filter).connect(gain).connect(ctx.destination);
-    src.start(now);
-    src.stop(endTime);
+    osc.type = 'sine';
+    const baseFreq = graceIsRunning ? 160 : 130;
+    const baseVol = graceIsRunning ? 0.12 : 0.08;
+    osc.frequency.setValueAtTime(baseFreq, now);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(baseVol, now + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.10);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.12);
   }
 
   let walkPhase = 0;
@@ -1081,7 +966,6 @@
     m.proxy.metadata = m.root.metadata;
     m.root.scaling = new BABYLON.Vector3(1.2, 1.2, 1.2);
     const label = createLabelForMesh(m.root, r.name);
-    m.root.parent = HNSRoot;
     return { ...r, ...m, label };
   });
 
@@ -1089,13 +973,11 @@
   const lincoln = createLincoln();
   const lincolnLabel = createLabelForMesh(lincoln.collider, 'Lincoln');
   lincolnLabel.width = '180px';
-  lincoln.collider.parent = HNSRoot;
 
   // Dakota spawn
   const dakota = createDakota();
   const dakotaLabel = createLabelForMesh(dakota.collider, 'Dakota');
   dakotaLabel.width = '180px';
-  dakota.collider.parent = HNSRoot;
 
   // Candidate spawn points near buildings but accessible
   const spawnPoints = [];
@@ -1312,7 +1194,6 @@
   const radarDistance = 24.0; // about twice a house length
 
   function updateRatLabels() {
-    if (currentMode !== 'HNS') { return; }
     for (const r of ratEntities) {
       if (r.root.metadata.found) { r.label.isVisible = false; continue; }
       const d = BABYLON.Vector3.Distance(r.root.position, graceCollider.position);
@@ -1356,7 +1237,6 @@
   hud.paddingLeft = '10px'; hud.paddingTop = '10px';
   hud.zIndex = 2000;
   ui.addControl(hud);
-  hud.isVisible = false;
 
   const title = new BABYLON.GUI.TextBlock();
   title.text = 'Find Rio, Chunk, and Snickerdoodle and bring them home!';
@@ -1405,7 +1285,6 @@
   window.addEventListener('keydown', (e) => {
     if (!['e','E','Space',' '].includes(e.key) && e.code !== 'Space') return;
     if (!gameStarted) return;
-    if (currentMode !== 'HNS') return; // Only H&S has interactions for now
     // If moving and Space is held, treat as sprint only
     if ((e.code === 'Space' || e.key === ' ') && (input.f || input.b || input.l || input.r)) return;
 
@@ -1493,29 +1372,22 @@
     }
   });
 
-  // Win condition detection (H&S only)
+  // Win condition detection
   const winDistance = 3.0;
   let gameWon = false;
   scene.onBeforeRenderObservable.add(() => {
-    if (currentMode !== 'HNS') return;
     if (!allFound || gameWon) return;
     const d = BABYLON.Vector3.Distance(graceCollider.position, home.position);
     if (d < winDistance) {
       gameWon = true;
-      showToast('You made it home with all three rats! You win! 🎉', 2000);
-      setTimeout(() => {
-        gameStarted = false;
-        // Reset simple flags/visibility
-        try { if (hud) hud.isVisible = false; } catch(e){}
-        currentMode = 'MENU';
-        HNSRoot.setEnabled(false);
-        createGameSelectScreen();
-      }, 2200);
+      showToast('You made it home with all three rats! You win! 🎉', 5000);
     }
   });
 
   // Resize
   window.addEventListener('resize', () => engine.resize());
 
-  engine.runRenderLoop(() => { attachCameraIfNeeded(); scene.render(); });
+  engine.runRenderLoop(() => {
+    scene.render();
+  });
 })();
