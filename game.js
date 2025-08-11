@@ -837,26 +837,25 @@
   function getAudioCtx(){ const api = window.__hs_audio; return (api && api.ensureAudio) ? api.ensureAudio() : null; }
   // Cached noise buffer for footsteps
   let footBuf = null;
-  function getFootBuf(){ const ctx = getAudioCtx(); if (!ctx) return null; if (footBuf) return footBuf; const len = Math.floor(0.18 * ctx.sampleRate); const buf = ctx.createBuffer(1, len, ctx.sampleRate); const data = buf.getChannelData(0); for (let i=0;i<len;i++){ const t = i/ctx.sampleRate; const env = Math.exp(-t*35); data[i] = (Math.random()*2-1) * env; } footBuf = buf; return buf; }
+  function getFootBuf(){ const ctx = getAudioCtx(); if (!ctx) return null; if (footBuf) return footBuf; const len = Math.floor(0.25 * ctx.sampleRate); const buf = ctx.createBuffer(1, len, ctx.sampleRate); const data = buf.getChannelData(0); for (let i=0;i<len;i++){ const t = i/ctx.sampleRate; const env = Math.exp(-t*18); data[i] = (Math.random()*2-1) * env; } footBuf = buf; return buf; }
+  let lastFootTimeFS = 0;
   function playFootstep(volumeMul = 1) {
-    const ctx = getAudioCtx(); if (!ctx) return; const buf = getFootBuf(); if (!buf) return; const now = ctx.currentTime; const src = ctx.createBufferSource(); src.buffer = buf; const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = graceIsRunning ? 700 : 550; filter.Q.value = 0.4; const gain = ctx.createGain(); const baseVol = graceIsRunning ? 1.2 : 0.9; // boosted a lot
+    const ctx = getAudioCtx(); if (!ctx) return; const now = ctx.currentTime; if (now - lastFootTimeFS < 0.14) return; lastFootTimeFS = now; const buf = getFootBuf(); if (!buf) return; const src = ctx.createBufferSource(); src.buffer = buf; const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 280; filter.Q.value = 0.7; const gain = ctx.createGain(); const baseVol = graceIsRunning ? 1.0 : 0.8;
     gain.gain.setValueAtTime(baseVol * volumeMul, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.10);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
     const bus = window.__hs_audio.getMaster?.();
     if (bus) src.connect(filter).connect(gain).connect(bus); else src.connect(filter).connect(gain).connect(ctx.destination);
     src.start(now);
-    src.stop(now + 0.12);
+    src.stop(now + 0.24);
 
-    // Add a sharp transient click for more percussive character
-    const clickOsc = ctx.createOscillator();
-    const clickGain = ctx.createGain();
-    clickOsc.type = 'square';
-    clickOsc.frequency.setValueAtTime(2000, now);
-    clickGain.gain.setValueAtTime((baseVol * volumeMul) * 0.3, now);
-    clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.02);
-    if (bus) clickOsc.connect(clickGain).connect(bus); else clickOsc.connect(clickGain).connect(ctx.destination);
-    clickOsc.start(now);
-    clickOsc.stop(now + 0.03);
+    // Add low-frequency thud with slight variation
+    const thudOsc = ctx.createOscillator(); const thudGain = ctx.createGain(); thudOsc.type = 'sine';
+    const baseF = 80 + Math.random()*20; thudOsc.frequency.setValueAtTime(baseF, now);
+    thudGain.gain.setValueAtTime((baseVol * volumeMul) * 0.6, now);
+    thudGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+    if (bus) thudOsc.connect(thudGain).connect(bus); else thudOsc.connect(thudGain).connect(ctx.destination);
+    thudOsc.start(now);
+    thudOsc.stop(now + 0.24);
   }
   // NPC footsteps with distance attenuation
   function attenuateByDistance(d, maxD = 30){ return Math.max(0, 1 - d/maxD); }
@@ -909,7 +908,7 @@
     lastGracePos.copyFrom(after);
 
     // Limb walk animation
-    const targetPhaseSpeed = (isMoving ? 0.03 : 0);
+    const targetPhaseSpeed = (isMoving ? 0.015 : 0);
     walkPhase += targetPhaseSpeed * dtFrames * 60;
     const swing = isMoving ? Math.sin(walkPhase) * 0.35 : 0;
     const swingOpp = -swing;
@@ -1133,7 +1132,7 @@
         isMovingL = true;
       }
       // Walk anim
-      const targetPhaseSpeed = (isMovingL ? 0.03 : 0);
+      const targetPhaseSpeed = (isMovingL ? 0.015 : 0);
       lincoln.state.walkPhase += targetPhaseSpeed * dtFrames * 60;
       const swing = isMovingL ? Math.sin(lincoln.state.walkPhase) * 0.28 : 0;
       const swingOpp = -swing;
@@ -1219,7 +1218,7 @@
         isMovingD = true;
       }
       // Walk anim
-      const targetPhaseSpeed = (isMovingD ? 0.03 : 0);
+      const targetPhaseSpeed = (isMovingD ? 0.015 : 0);
       dakota.state.walkPhase += targetPhaseSpeed * dtFrames * 60;
       const swing = isMovingD ? Math.sin(dakota.state.walkPhase) * 0.28 : 0;
       const swingOpp = -swing;
