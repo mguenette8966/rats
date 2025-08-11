@@ -789,6 +789,7 @@
   canvas.addEventListener('click', () => {
     if (!gameStarted) return;
     if (window.__hs_audio && window.__hs_audio.ensureAudio) window.__hs_audio.ensureAudio();
+    try { if (typeof playConfirmBeep === 'function') playConfirmBeep(); } catch(_) {}
     if (document.pointerLockElement !== canvas) {
       canvas.requestPointerLock?.();
     }
