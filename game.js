@@ -101,6 +101,7 @@
 
     // Audio setup helpers
     let audioCtx = null;
+    let masterGain = null;
     function ensureAudio() {
       if (!audioCtx) {
         const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -109,12 +110,31 @@
       if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume?.();
       }
+      if (audioCtx && !masterGain) {
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = 2.0; // strong boost
+        masterGain.connect(audioCtx.destination);
+      }
       return audioCtx;
     }
     // Expose to outer scope for footsteps
-    window.__hs_audio = { ensureAudio: ensureAudio };
+    window.__hs_audio = { ensureAudio: ensureAudio, getMaster: () => { ensureAudio(); return masterGain; } };
     // Also resume on first user gesture anywhere
-    window.addEventListener('pointerdown', () => { try { ensureAudio(); } catch(e){} }, { once: true, capture: true });
+    const resumeAny = () => { try { ensureAudio(); } catch(e){} };
+    window.addEventListener('pointerdown', resumeAny, { once: true, capture: true });
+    window.addEventListener('keydown', resumeAny, { once: true, capture: true });
+
+    function playConfirmBeep() {
+      const ctx = ensureAudio(); if (!ctx) return; const now = ctx.currentTime;
+      const o = ctx.createOscillator(); const g = ctx.createGain();
+      o.type = 'square'; o.frequency.setValueAtTime(880, now);
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(0.3, now + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+      const bus = window.__hs_audio.getMaster?.();
+      if (bus) { o.connect(g).connect(bus); } else { o.connect(g).connect(ctx.destination); }
+      o.start(now); o.stop(now + 0.14);
+    }
 
     function showInstructionScreen(onDone) {
       const instr = new BABYLON.GUI.Rectangle('instructionOverlay');
@@ -133,6 +153,7 @@
       instr.onPointerUpObservable.add(() => {
         if (timeoutId) clearTimeout(timeoutId);
         ensureAudio();
+        playConfirmBeep();
         ui.removeControl(instr); onDone && onDone();
       });
     }
@@ -148,6 +169,7 @@
     startBtn.zIndex = 10001;
     startBtn.onPointerUpObservable.add(() => {
       ensureAudio();
+      playConfirmBeep();
       ui.removeControl(overlay);
       showInstructionScreen(() => { gameStarted = true; canvas.focus(); });
     });
@@ -815,7 +837,8 @@
     const ctx = getAudioCtx(); if (!ctx) return; const buf = getFootBuf(); if (!buf) return; const now = ctx.currentTime; const src = ctx.createBufferSource(); src.buffer = buf; const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = graceIsRunning ? 1000 : 800; filter.Q.value = 0.5; const gain = ctx.createGain(); const baseVol = graceIsRunning ? 1.2 : 0.9; // boosted a lot
     gain.gain.setValueAtTime(baseVol * volumeMul, now);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
-    src.connect(filter).connect(gain).connect(ctx.destination);
+    const bus = window.__hs_audio.getMaster?.();
+    if (bus) src.connect(filter).connect(gain).connect(bus); else src.connect(filter).connect(gain).connect(ctx.destination);
     src.start(now);
     src.stop(now + 0.2);
   }
@@ -823,9 +846,9 @@
   function attenuateByDistance(d, maxD = 30){ return Math.max(0, 1 - d/maxD); }
   function playNpcFootstep(npcPos){ const ctx = getAudioCtx(); if (!ctx) return; const d = BABYLON.Vector3.Distance(npcPos, graceCollider.position); const volMul = attenuateByDistance(d); if (volMul <= 0) return; playFootstep(volMul * 2.0); }
   // Chime on rat collect
-  function playChime(){ const ctx = getAudioCtx(); if (!ctx) return; const now = ctx.currentTime; const freqs = [880, 1320]; const dur = 0.35; freqs.forEach((f,i)=>{ const osc = ctx.createOscillator(); const g = ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(f, now); g.gain.setValueAtTime(0.001, now); g.gain.exponentialRampToValueAtTime(1.0, now + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, now + dur + i*0.02); osc.connect(g).connect(ctx.destination); osc.start(now + i*0.01); osc.stop(now + dur + 0.2 + i*0.02); }); }
+  function playChime(){ const ctx = getAudioCtx(); if (!ctx) return; const now = ctx.currentTime; const freqs = [880, 1320]; const dur = 0.35; freqs.forEach((f,i)=>{ const osc = ctx.createOscillator(); const g = ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(f, now); g.gain.setValueAtTime(0.001, now); g.gain.exponentialRampToValueAtTime(1.0, now + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, now + dur + i*0.02); const bus = window.__hs_audio.getMaster?.(); if (bus) { osc.connect(g).connect(bus); } else { osc.connect(g).connect(ctx.destination); } osc.start(now + i*0.01); osc.stop(now + dur + 0.2 + i*0.02); }); }
   // Thud on NPC knockdown
-  function playThud(){ const ctx = getAudioCtx(); if (!ctx) return; const now = ctx.currentTime; const o = ctx.createOscillator(); const g = ctx.createGain(); const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 400; o.type = 'triangle'; o.frequency.setValueAtTime(150, now); g.gain.setValueAtTime(3.0, now); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.25); o.connect(f).connect(g).connect(ctx.destination); o.start(now); o.stop(now + 0.3); }
+  function playThud(){ const ctx = getAudioCtx(); if (!ctx) return; const now = ctx.currentTime; const o = ctx.createOscillator(); const g = ctx.createGain(); const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 400; o.type = 'triangle'; o.frequency.setValueAtTime(150, now); g.gain.setValueAtTime(3.0, now); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.25); const bus = window.__hs_audio.getMaster?.(); if (bus) { o.connect(f).connect(g).connect(bus); } else { o.connect(f).connect(g).connect(ctx.destination); } o.start(now); o.stop(now + 0.3); }
 
   let walkPhase = 0;
   scene.onBeforeRenderObservable.add(() => {
