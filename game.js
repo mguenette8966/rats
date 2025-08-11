@@ -36,6 +36,8 @@
   const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('UI');
   ui.layer.layerMask = 0x0FFFFFFF; ui.rootContainer.zIndex = 3000;
   let currentMode = 'MENU';
+  const HNSRoot = new BABYLON.TransformNode('HNSRoot', scene);
+  HNSRoot.setEnabled(false);
 
   function showToast(message, durationMs = 2000) {
     const rect = new BABYLON.GUI.Rectangle();
@@ -210,11 +212,11 @@
     function makeBtn(text, bg){ const b = BABYLON.GUI.Button.CreateSimpleButton('btn_'+text, text); b.width = '340px'; b.height = '80px'; b.color = 'white'; b.background = bg; b.fontSize = 28; b.cornerRadius = 12; b.paddingBottom = '20px'; return b; }
 
     const btnHNS = makeBtn('Hide and Squeak', '#2b7a2b');
-    btnHNS.onPointerUpObservable.add(() => { currentMode = 'HNS'; ui.removeControl(overlay); createTitleScreen(); });
+    btnHNS.onPointerUpObservable.add(() => { currentMode = 'HNS'; HNSRoot.setEnabled(true); ui.removeControl(overlay); createTitleScreen(); });
     stack.addControl(btnHNS);
 
     const btnUntitled = makeBtn('Untitled Game', '#1f5f99');
-    btnUntitled.onPointerUpObservable.add(() => { currentMode = 'CAGE'; ui.removeControl(overlay); startCageLevel(); });
+    btnUntitled.onPointerUpObservable.add(() => { currentMode = 'CAGE'; HNSRoot.setEnabled(false); ui.removeControl(overlay); startCageLevel(); });
     stack.addControl(btnUntitled);
   }
 
@@ -285,6 +287,7 @@
   groundMat.diffuseColor = new BABYLON.Color3(0.55, 0.75, 0.45); // grass-green
   ground.material = groundMat;
   ground.checkCollisions = true;
+  ground.parent = HNSRoot;
 
   function createRoad(x, z, width, length, rotationY = 0) {
     const road = BABYLON.MeshBuilder.CreateGround('road', { width, height: length }, scene);
@@ -293,21 +296,20 @@
     const mat = new BABYLON.StandardMaterial('roadMat' + Math.random(), scene);
     mat.diffuseColor = new BABYLON.Color3(0.18, 0.18, 0.18);
     road.material = mat;
+    road.parent = HNSRoot;
     return road;
   }
 
   // Perimeter fence to prevent falling off
   function createFence() {
-    const halfW = 100, halfH = 100, thickness = 0.5, height = 3;
-    const fenceMat = new BABYLON.StandardMaterial('fenceMat', scene);
-    fenceMat.diffuseColor = new BABYLON.Color3(0.7, 0.7, 0.7);
-    const north = BABYLON.MeshBuilder.CreateBox('fenceN', { width: halfW * 2, height, depth: thickness }, scene);
+    const thickness = 0.5; const height = 3; const halfW = 100; const halfH = 100;
+    const north = BABYLON.MeshBuilder.CreateBox('fenceN', { width: 200, height, depth: thickness }, scene);
     north.position = new BABYLON.Vector3(0, height / 2, -halfH + thickness / 2);
     const south = north.clone('fenceS'); south.position = new BABYLON.Vector3(0, height / 2, halfH - thickness / 2);
-    const west = BABYLON.MeshBuilder.CreateBox('fenceW', { width: thickness, height, depth: halfH * 2 }, scene);
+    const west = BABYLON.MeshBuilder.CreateBox('fenceW', { width: thickness, height, depth: 200 }, scene);
     west.position = new BABYLON.Vector3(-halfW + thickness / 2, height / 2, 0);
     const east = west.clone('fenceE'); east.position = new BABYLON.Vector3(halfW - thickness / 2, height / 2, 0);
-    ;[north, south, west, east].forEach(w => { w.material = fenceMat; w.checkCollisions = true; });
+    ;[north, south, west, east].forEach(w => { w.material = fenceMat; w.checkCollisions = true; w.parent = HNSRoot; });
   }
   createFence();
 
@@ -326,6 +328,7 @@
     const box = BABYLON.MeshBuilder.CreateBox(name, { width: w, depth: d, height: h }, scene);
     box.position = new BABYLON.Vector3(x, h / 2, z);
     box.checkCollisions = true;
+    box.parent = HNSRoot;
 
     const mat = new BABYLON.StandardMaterial('mat_' + name, scene);
     mat.diffuseColor = color;
@@ -504,6 +507,7 @@
   const home = homeCandidates.length ? homeCandidates[Math.floor(Math.random() * homeCandidates.length)] : buildings[0];
   const homeMarker = createFloatingBillboard('HOME', home, 'Home');
   homeMarker.isVisible = false;
+  try { homeMarker.parent = HNSRoot; } catch(e){}
 
   // Add "Grace's House" sign above home door if available
   if (home && home.metadata && home.metadata.door) {
@@ -588,6 +592,7 @@
   graceCollider.ellipsoid = new BABYLON.Vector3(0.45, 1.0, 0.45);
   graceCollider.ellipsoidOffset = new BABYLON.Vector3(0, 1.0, 0);
   graceCollider.isVisible = false;
+  graceCollider.parent = HNSRoot;
 
   const graceVisual = new BABYLON.TransformNode('GraceVisual', scene);
   graceVisual.parent = graceCollider;
@@ -1071,6 +1076,7 @@
     m.proxy.metadata = m.root.metadata;
     m.root.scaling = new BABYLON.Vector3(1.2, 1.2, 1.2);
     const label = createLabelForMesh(m.root, r.name);
+    m.root.parent = HNSRoot;
     return { ...r, ...m, label };
   });
 
@@ -1078,11 +1084,13 @@
   const lincoln = createLincoln();
   const lincolnLabel = createLabelForMesh(lincoln.collider, 'Lincoln');
   lincolnLabel.width = '180px';
+  lincoln.collider.parent = HNSRoot;
 
   // Dakota spawn
   const dakota = createDakota();
   const dakotaLabel = createLabelForMesh(dakota.collider, 'Dakota');
   dakotaLabel.width = '180px';
+  dakota.collider.parent = HNSRoot;
 
   // Candidate spawn points near buildings but accessible
   const spawnPoints = [];
@@ -1495,6 +1503,7 @@
         // Reset simple flags/visibility
         try { if (hud) hud.isVisible = false; } catch(e){}
         currentMode = 'MENU';
+        HNSRoot.setEnabled(false);
         createGameSelectScreen();
       }, 2200);
     }
