@@ -839,13 +839,24 @@
   let footBuf = null;
   function getFootBuf(){ const ctx = getAudioCtx(); if (!ctx) return null; if (footBuf) return footBuf; const len = Math.floor(0.18 * ctx.sampleRate); const buf = ctx.createBuffer(1, len, ctx.sampleRate); const data = buf.getChannelData(0); for (let i=0;i<len;i++){ const t = i/ctx.sampleRate; const env = Math.exp(-t*35); data[i] = (Math.random()*2-1) * env; } footBuf = buf; return buf; }
   function playFootstep(volumeMul = 1) {
-    const ctx = getAudioCtx(); if (!ctx) return; const buf = getFootBuf(); if (!buf) return; const now = ctx.currentTime; const src = ctx.createBufferSource(); src.buffer = buf; const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = graceIsRunning ? 1000 : 800; filter.Q.value = 0.5; const gain = ctx.createGain(); const baseVol = graceIsRunning ? 1.2 : 0.9; // boosted a lot
+    const ctx = getAudioCtx(); if (!ctx) return; const buf = getFootBuf(); if (!buf) return; const now = ctx.currentTime; const src = ctx.createBufferSource(); src.buffer = buf; const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = graceIsRunning ? 700 : 550; filter.Q.value = 0.4; const gain = ctx.createGain(); const baseVol = graceIsRunning ? 1.2 : 0.9; // boosted a lot
     gain.gain.setValueAtTime(baseVol * volumeMul, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.10);
     const bus = window.__hs_audio.getMaster?.();
     if (bus) src.connect(filter).connect(gain).connect(bus); else src.connect(filter).connect(gain).connect(ctx.destination);
     src.start(now);
-    src.stop(now + 0.2);
+    src.stop(now + 0.12);
+
+    // Add a sharp transient click for more percussive character
+    const clickOsc = ctx.createOscillator();
+    const clickGain = ctx.createGain();
+    clickOsc.type = 'square';
+    clickOsc.frequency.setValueAtTime(2000, now);
+    clickGain.gain.setValueAtTime((baseVol * volumeMul) * 0.3, now);
+    clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.02);
+    if (bus) clickOsc.connect(clickGain).connect(bus); else clickOsc.connect(clickGain).connect(ctx.destination);
+    clickOsc.start(now);
+    clickOsc.stop(now + 0.03);
   }
   // NPC footsteps with distance attenuation
   function attenuateByDistance(d, maxD = 30){ return Math.max(0, 1 - d/maxD); }
@@ -898,7 +909,7 @@
     lastGracePos.copyFrom(after);
 
     // Limb walk animation
-    const targetPhaseSpeed = (isMoving ? 0.12 : 0);
+    const targetPhaseSpeed = (isMoving ? 0.06 : 0);
     walkPhase += targetPhaseSpeed * dtFrames * 60;
     const swing = isMoving ? Math.sin(walkPhase) * 0.35 : 0;
     const swingOpp = -swing;
@@ -1122,7 +1133,7 @@
         isMovingL = true;
       }
       // Walk anim
-      const targetPhaseSpeed = (isMovingL ? 0.12 : 0);
+      const targetPhaseSpeed = (isMovingL ? 0.06 : 0);
       lincoln.state.walkPhase += targetPhaseSpeed * dtFrames * 60;
       const swing = isMovingL ? Math.sin(lincoln.state.walkPhase) * 0.28 : 0;
       const swingOpp = -swing;
@@ -1208,7 +1219,7 @@
         isMovingD = true;
       }
       // Walk anim
-      const targetPhaseSpeed = (isMovingD ? 0.12 : 0);
+      const targetPhaseSpeed = (isMovingD ? 0.06 : 0);
       dakota.state.walkPhase += targetPhaseSpeed * dtFrames * 60;
       const swing = isMovingD ? Math.sin(dakota.state.walkPhase) * 0.28 : 0;
       const swingOpp = -swing;
